@@ -17,7 +17,7 @@
 
 	
 	<!-- Module Activator -->
-	<activator>${project.parent.groupId}.${project.parent.artifactId}.XDSbRepositoryInterfaceActivator</activator>
+	<activator>${project.parent.groupId}.xdsbrepository.XDSbRepositoryInterfaceActivator</activator>
 	
 	
 	<!-- Adds link to admin page -->
@@ -25,6 +25,12 @@
 		<point>org.openmrs.admin.list</point>
 		<class>${project.parent.groupId}.${project.parent.artifactId}.extension.html.AdminList</class>
 	</extension>
+	
+	<!--  XDS Repository Servlet -->
+	<servlet>
+		<servlet-name>xdsrepository</servlet-name>
+		<servlet-class>org.openmrs.module.xdsbrepository.spring.servlet.ModuleMessageDispatcherServlet</servlet-class>
+	</servlet>
 	
 	<!-- Maps hibernate file's, if present -->
 	<mappingFiles>
