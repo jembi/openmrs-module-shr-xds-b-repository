@@ -15,10 +15,8 @@
 	<require_version>${openMRSVersion}</require_version>
 	<!-- / Module Properties -->
 
-	
 	<!-- Module Activator -->
 	<activator>${project.parent.groupId}.xdsbrepository.XDSbRepositoryInterfaceActivator</activator>
-	
 	
 	<!-- Adds link to admin page -->
 	<extension>
@@ -52,6 +50,18 @@
 		<file>messages_es.properties</file>
 	</messages>
 	<!-- /Internationalization -->
+	
+	<!-- Global properties -->
+	<globalProperty>
+		<property>${project.parent.artifactId}.ws.username</property>
+		<defaultValue>admin</defaultValue>
+		<description>The user to authenticate as for incomming XDSb requests.</description>
+	</globalProperty>
+	<globalProperty>
+		<property>${project.parent.artifactId}.ws.password</property>
+		<defaultValue>Admin123</defaultValue>
+		<description>The users password</description>
+	</globalProperty>
 
 </module>
 

@@ -30,7 +30,8 @@
 	<modules>
 		<module>api</module>
 		<module>omod</module>
-	</modules>
+    <module>openmrs-project</module>
+  </modules>
 	
 	<properties>
 		<openMRSVersion>1.9.8</openMRSVersion>

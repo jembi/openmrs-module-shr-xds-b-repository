@@ -7,6 +7,7 @@ import java.util.List;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.dcm4chee.xds2.common.XDSConstants;
+import org.openmrs.api.AdministrationService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.XdsDocumentRepositoryService;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.transport.xds.ExtrinsicObjectType;
@@ -28,6 +29,9 @@ import org.springframework.stereotype.Service;
 @Service
 public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositoryService {
 	
+	public static final String WS_USERNAME_GP = "xds-b-repository.ws.username";
+	public static final String WS_PASSWORD_GP = "xds-b-repository.ws.password";
+	
 	// Get the clinical statement service
 	protected final Log log = LogFactory.getLog(this.getClass());
 
@@ -35,9 +39,12 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	 * Start an OpenMRS Session
 	 */
 	private void startSession() {
-	    // TODO: Move this to a config parameter web services user
+		AdministrationService as = Context.getAdministrationService();
+		String username = as.getGlobalProperty(WS_USERNAME_GP);
+		String password = as.getGlobalProperty(WS_PASSWORD_GP);
+		
 		Context.openSession();
-		Context.authenticate("admin", "test");
+		Context.authenticate(username, password);
 		this.log.error(OpenmrsConstants.DATABASE_NAME);
     }
 		
