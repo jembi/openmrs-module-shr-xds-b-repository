@@ -12,7 +12,7 @@
 	
 	<developers>
 		<developer>
-			<name>Jembi</name>
+			<name>Jembi and ecGroup</name>
 		</developer>
 	</developers>
 	
@@ -30,8 +30,7 @@
 	<modules>
 		<module>api</module>
 		<module>omod</module>
-    <module>openmrs-project</module>
-  </modules>
+	</modules>
 	
 	<properties>
 		<openMRSVersion>1.9.8</openMRSVersion>

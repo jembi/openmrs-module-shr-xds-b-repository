@@ -1,5 +1,6 @@
 package org.openmrs.module.xdsbrepository.ihe.iti.actors.impl;
 
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
@@ -32,6 +33,8 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	public static final String WS_USERNAME_GP = "xds-b-repository.ws.username";
 	public static final String WS_PASSWORD_GP = "xds-b-repository.ws.password";
 	
+	public static final String XDS_REGISTRY_URL_GP = "xds-b-repository.xdsregistry.url";
+	
 	// Get the clinical statement service
 	protected final Log log = LogFactory.getLog(this.getClass());
 
@@ -57,24 +60,21 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 		
 		log.info("Start provideAndRegisterDocumentSetB");
 		
-		URL registryURL = null; // TODO : get this from global properties
-		try
-		{
+		try	{
 			this.startSession();
 			
-			registryURL = this.getRegistryUrl(this.getSourceID(request));
+			URL registryURL = this.getRegistryUrl();
 			List<ExtrinsicObjectType> extrinsicObjects = this.getExtrinsicObjects(request);
 			
 			// Save each document
 			List<String> storedIds = new ArrayList<String>();
-			for(ExtrinsicObjectType eot : extrinsicObjects)
+			for(ExtrinsicObjectType eot : extrinsicObjects) {
 				storedIds.add(this.storeDocument(eot, request));
+			}
 
 			SubmitObjectsRequest submitObjectRequest = request.getSubmitObjectsRequest();
 			return this.sendMetadataToRegistry(registryURL, submitObjectRequest);
-		}
-		catch(Exception e)
-		{
+		} catch (Exception e)	{
 			// Log the error
 			log.error(e);
 			
@@ -91,9 +91,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			errorList.getRegistryError().add(error);
 			response.setRegistryErrorList(errorList);
 			return response;
-		}
-		finally
-		{
+		} finally {
 			log.info("Stop provideAndRegisterDocumentSetB");
 			Context.closeSession();
 		}
@@ -119,26 +117,20 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
     }
 
 	/**
-	 * Get the URL of the repository
+	 * Get the URL of the registry
+	 * @throws MalformedURLException 
 	 */
-	private URL getRegistryUrl(Object sourceID) {
-	    // TODO Auto-generated method stub
-	    return null;
+	private URL getRegistryUrl() throws MalformedURLException {
+		AdministrationService as = Context.getAdministrationService();
+	    String url = as.getGlobalProperty(XDS_REGISTRY_URL_GP);
+	    
+		return new URL(url);
     }
 
 	/**
 	 * Get a list of all extrinsic objects in the submission package
 	 */
 	private List<ExtrinsicObjectType> getExtrinsicObjects(ProvideAndRegisterDocumentSetRequestType request) {
-	    // TODO Auto-generated method stub
-	    return null;
-    }
-
-	/**
-	 * Get the source identifier 
-	 * Auto generated method comment
-	 */
-	private Object getSourceID(ProvideAndRegisterDocumentSetRequestType request) {
 	    // TODO Auto-generated method stub
 	    return null;
     }

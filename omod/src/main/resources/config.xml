@@ -21,7 +21,7 @@
 	<!-- Adds link to admin page -->
 	<extension>
 		<point>org.openmrs.admin.list</point>
-		<class>${project.parent.groupId}.${project.parent.artifactId}.extension.html.AdminList</class>
+		<class>${project.parent.groupId}.xdsbrepository.extension.html.AdminList</class>
 	</extension>
 	
 	<!--  XDS Repository Servlet -->
@@ -55,12 +55,17 @@
 	<globalProperty>
 		<property>${project.parent.artifactId}.ws.username</property>
 		<defaultValue>admin</defaultValue>
-		<description>The user to authenticate as for incomming XDSb requests.</description>
+		<description>The user to authenticate as for incoming XDSb requests.</description>
 	</globalProperty>
 	<globalProperty>
 		<property>${project.parent.artifactId}.ws.password</property>
 		<defaultValue>Admin123</defaultValue>
-		<description>The users password</description>
+		<description>The users password.</description>
+	</globalProperty>
+	<globalProperty>
+		<property>${project.parent.artifactId}.xdsregistry.url</property>
+		<defaultValue>http://xds.marc-hi.ca:1025/xdsservice/xdsregistry</defaultValue>
+		<description>The url of the XDSb registry to use.</description>
 	</globalProperty>
 
 </module>
