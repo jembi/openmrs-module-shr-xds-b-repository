@@ -15,16 +15,20 @@
 	<require_version>${openMRSVersion}</require_version>
 	<!-- / Module Properties -->
 
-	
 	<!-- Module Activator -->
-	<activator>${project.parent.groupId}.${project.parent.artifactId}.XDSbRepositoryInterfaceActivator</activator>
-	
+	<activator>${project.parent.groupId}.xdsbrepository.XDSbRepositoryInterfaceActivator</activator>
 	
 	<!-- Adds link to admin page -->
 	<extension>
 		<point>org.openmrs.admin.list</point>
-		<class>${project.parent.groupId}.${project.parent.artifactId}.extension.html.AdminList</class>
+		<class>${project.parent.groupId}.xdsbrepository.extension.html.AdminList</class>
 	</extension>
+	
+	<!--  XDS Repository Servlet -->
+	<servlet>
+		<servlet-name>xdsrepository</servlet-name>
+		<servlet-class>org.openmrs.module.xdsbrepository.spring.servlet.ModuleMessageDispatcherServlet</servlet-class>
+	</servlet>
 	
 	<!-- Maps hibernate file's, if present -->
 	<mappingFiles>
@@ -46,6 +50,23 @@
 		<file>messages_es.properties</file>
 	</messages>
 	<!-- /Internationalization -->
+	
+	<!-- Global properties -->
+	<globalProperty>
+		<property>${project.parent.artifactId}.ws.username</property>
+		<defaultValue>admin</defaultValue>
+		<description>The user to authenticate as for incoming XDSb requests.</description>
+	</globalProperty>
+	<globalProperty>
+		<property>${project.parent.artifactId}.ws.password</property>
+		<defaultValue>Admin123</defaultValue>
+		<description>The users password.</description>
+	</globalProperty>
+	<globalProperty>
+		<property>${project.parent.artifactId}.xdsregistry.url</property>
+		<defaultValue>http://xds.marc-hi.ca:1025/xdsservice/xdsregistry</defaultValue>
+		<description>The url of the XDSb registry to use.</description>
+	</globalProperty>
 
 </module>
 

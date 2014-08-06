@@ -5,3 +5,4 @@ api/.settings/
 api/target/
 omod/target/
 *.iml
+/openmrs-project
