@@ -5,20 +5,26 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.xml.bind.JAXBElement;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.dcm4chee.xds2.common.XDSConstants;
+import org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType;
+import org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType.Document;
+import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetRequestType;
+import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetResponseType;
+import org.dcm4chee.xds2.infoset.rim.ClassificationType;
+import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
+import org.dcm4chee.xds2.infoset.rim.IdentifiableType;
+import org.dcm4chee.xds2.infoset.rim.RegistryError;
+import org.dcm4chee.xds2.infoset.rim.RegistryErrorList;
+import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
+import org.dcm4chee.xds2.infoset.rim.SubmitObjectsRequest;
+import org.dcm4chee.xds2.infoset.util.InfosetUtil;
 import org.openmrs.api.AdministrationService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.XdsDocumentRepositoryService;
-import org.openmrs.module.xdsbrepository.ihe.iti.actors.transport.xds.ExtrinsicObjectType;
-import org.openmrs.module.xdsbrepository.ihe.iti.actors.transport.xds.ProvideAndRegisterDocumentSetRequestType;
-import org.openmrs.module.xdsbrepository.ihe.iti.actors.transport.xds.RegistryError;
-import org.openmrs.module.xdsbrepository.ihe.iti.actors.transport.xds.RegistryErrorList;
-import org.openmrs.module.xdsbrepository.ihe.iti.actors.transport.xds.RegistryResponseType;
-import org.openmrs.module.xdsbrepository.ihe.iti.actors.transport.xds.RetrieveDocumentSetRequestType;
-import org.openmrs.module.xdsbrepository.ihe.iti.actors.transport.xds.RetrieveDocumentSetResponseType;
-import org.openmrs.module.xdsbrepository.ihe.iti.actors.transport.xds.SubmitObjectsRequest;
 import org.openmrs.util.OpenmrsConstants;
 import org.springframework.stereotype.Service;
 
@@ -65,6 +71,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			
 			URL registryURL = this.getRegistryUrl();
 			List<ExtrinsicObjectType> extrinsicObjects = this.getExtrinsicObjects(request);
+			extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
 			
 			// Save each document
 			List<String> storedIds = new ArrayList<String>();
@@ -112,7 +119,41 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	 * Store a document and return its UUID
 	 */
 	private String storeDocument(ExtrinsicObjectType eot, ProvideAndRegisterDocumentSetRequestType request) {
-	    // TODO Auto-generated method stub
+		String docId = eot.getId();
+		
+		List<Document> docList = request.getDocument();
+		Document document = null;
+		for (Document d : docList) {
+			if (d.getId().equals(docId)) {
+				document = d;
+				break;
+			}
+		}
+		
+		String typeCode = null;
+		String formatCode = null;
+		String contentType = null;
+		List<ClassificationType> classificationList = eot.getClassification();
+		for (ClassificationType ct : classificationList) {
+			if (ct.getClassificationScheme().equals("urn:uuid:aa543740-bdda-424e-8c96-df4873be8500")) {
+				typeCode = ct.getNodeRepresentation();
+			}
+			if (ct.getClassificationScheme().equals("urn:uuid:a09d5840-386c-46f2-b5ad-9c3699a4309d")) {
+				formatCode = ct.getNodeRepresentation();
+			}
+		}
+		
+		/*
+		Content content = new Content(document.getValue().toString(), typeCode, formatCode, contentType);
+		
+		ContentHandlerService chs = Context.getService(ContentHandlerService.class);
+		ContentHandler defaultHandler = chs.getDefaultHandler(typeCode, formatCode);
+		ContentHandler discreteHandler = chs.getContentHandler(typeCode, formatCode);
+				
+		defaultHandler.saveContent(patient, provider, role, encounterType, content);
+		discreteHandler.saveContent(patient, provider, role, encounterType, content);
+		*/
+		
 	    return null;
     }
 
@@ -131,8 +172,16 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	 * Get a list of all extrinsic objects in the submission package
 	 */
 	private List<ExtrinsicObjectType> getExtrinsicObjects(ProvideAndRegisterDocumentSetRequestType request) {
-	    // TODO Auto-generated method stub
-	    return null;
+		List<ExtrinsicObjectType> extrObjs = new ArrayList<ExtrinsicObjectType>();
+        List<JAXBElement<? extends IdentifiableType>> list = request.getSubmitObjectsRequest().getRegistryObjectList().getIdentifiable();
+        IdentifiableType o;
+        for ( int i = 0, len = list.size() ; i < len ; i++ ) {
+            o = list.get(i).getValue();
+            if ( o instanceof ExtrinsicObjectType) {
+                extrObjs.add((ExtrinsicObjectType) o);
+            }
+        }
+        return extrObjs;
     }
 
 	/**
