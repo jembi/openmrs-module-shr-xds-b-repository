@@ -2,9 +2,12 @@ package org.openmrs.module.xdsbrepository.ihe.iti.actors.impl;
 
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 import javax.xml.bind.JAXBElement;
 
@@ -21,6 +24,7 @@ import org.dcm4chee.xds2.infoset.rim.IdentifiableType;
 import org.dcm4chee.xds2.infoset.rim.RegistryError;
 import org.dcm4chee.xds2.infoset.rim.RegistryErrorList;
 import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
+import org.dcm4chee.xds2.infoset.rim.SlotType1;
 import org.dcm4chee.xds2.infoset.rim.SubmitObjectsRequest;
 import org.dcm4chee.xds2.infoset.util.InfosetUtil;
 import org.openmrs.EncounterRole;
@@ -28,6 +32,8 @@ import org.openmrs.EncounterType;
 import org.openmrs.Patient;
 import org.openmrs.PatientIdentifier;
 import org.openmrs.PatientIdentifierType;
+import org.openmrs.PersonAddress;
+import org.openmrs.PersonName;
 import org.openmrs.Provider;
 import org.openmrs.api.AdministrationService;
 import org.openmrs.api.PatientService;
@@ -214,7 +220,63 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			throw new Exception("Multiple patients found for this identifier: " + patId + ", with id type: " + assigningAuthority);
 		} else if (patients.size() < 1) {
 			// Create a new patient
-			return null;
+			Map<String, SlotType1> slots = InfosetUtil.getSlotsFromRegistryObject(eot);
+			SlotType1 patInfoSlot = slots.get(XDSConstants.SLOT_NAME_SOURCE_PATIENT_INFO);
+			List<String> valueList = patInfoSlot.getValueList().getValue();
+			
+			SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
+			Patient pat = new Patient();
+			
+			PatientIdentifier pi = new PatientIdentifier(patId, idType, Context.getLocationService().getDefaultLocation());
+			pat.addIdentifier(pi);
+			
+			for (String val : valueList) {
+				if (val.startsWith("PID-3|")) {
+					// patient ID - ignore source patient id in favour of enterprise patient id
+				} else if (val.startsWith("PID-5|")) {
+					// patient name
+					val = val.replace("PID-5|", "");
+					String[] nameComponents = val.split("\\^", -1);
+					PersonName pn = new PersonName(nameComponents[1], null, nameComponents[0]);
+					try {
+						pn.setMiddleName(nameComponents[2]);
+						pn.setFamilyNameSuffix(nameComponents[3]);
+						pn.setPrefix(nameComponents[4]);
+						pn.setDegree(nameComponents[5]);
+					} catch (ArrayIndexOutOfBoundsException e) {
+						// ignore, these aren't important if they don't exist
+					}
+					pat.addName(pn);
+				} else if (val.startsWith("PID-7|")) {
+					// patient date of birth
+					val = val.replace("PID-7|", "");
+					Date dob = sdf.parse(val);
+					pat.setBirthdate(dob);
+				} else if (val.startsWith("PID-8|")) {
+					// patient gender
+					val = val.replace("PID-8|", "");
+					if (val.equalsIgnoreCase("O") || val.equalsIgnoreCase("U") || val.equalsIgnoreCase("A") || val.equalsIgnoreCase("N")) {
+						throw new Exception("OpenMRS does not support genders other than male or female.");
+					}
+					pat.setGender(val);
+				} else if (val.startsWith("PID-11|")) {
+					// patient address
+					val = val.replace("PID-11|", "");
+					String[] addrComponents = val.split("\\^", -1);
+					PersonAddress pa = new PersonAddress();
+					pa.setAddress1(addrComponents[0]);
+					pa.setAddress2(addrComponents[1]);
+					pa.setCityVillage(addrComponents[2]);
+					pa.setStateProvince(addrComponents[3]);
+					pa.setPostalCode(addrComponents[4]);
+					pa.setCountry(addrComponents[5]);
+					pat.addAddress(pa);
+				} else {
+					log.warn("Found an unknown value in the sourcePatientInfo slot: " + val);
+				}
+			}
+			
+			return ps.savePatient(pat);
 		} else {
 			return patients.get(0);
 		}
