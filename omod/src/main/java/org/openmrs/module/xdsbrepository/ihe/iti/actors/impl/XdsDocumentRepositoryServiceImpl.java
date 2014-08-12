@@ -3,6 +3,7 @@ package org.openmrs.module.xdsbrepository.ihe.iti.actors.impl;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import javax.xml.bind.JAXBElement;
@@ -22,8 +23,19 @@ import org.dcm4chee.xds2.infoset.rim.RegistryErrorList;
 import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
 import org.dcm4chee.xds2.infoset.rim.SubmitObjectsRequest;
 import org.dcm4chee.xds2.infoset.util.InfosetUtil;
+import org.openmrs.EncounterRole;
+import org.openmrs.EncounterType;
+import org.openmrs.Patient;
+import org.openmrs.PatientIdentifier;
+import org.openmrs.PatientIdentifierType;
+import org.openmrs.Provider;
 import org.openmrs.api.AdministrationService;
+import org.openmrs.api.PatientService;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.shr.contenthandler.api.CodedValue;
+import org.openmrs.module.shr.contenthandler.api.Content;
+import org.openmrs.module.shr.contenthandler.api.ContentHandler;
+import org.openmrs.module.shr.contenthandler.api.ContentHandlerService;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.XdsDocumentRepositoryService;
 import org.openmrs.util.OpenmrsConstants;
 import org.springframework.stereotype.Service;
@@ -108,7 +120,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	/**
 	 * Register documents on registry 
 	 */
-	private RegistryResponseType sendMetadataToRegistry(URL registryUrl, SubmitObjectsRequest submitObjectRequest) {
+	protected RegistryResponseType sendMetadataToRegistry(URL registryUrl, SubmitObjectsRequest submitObjectRequest) {
 		// TODO: This is a stub
 		RegistryResponseType response = new RegistryResponseType();
 		response.setStatus(XDSConstants.XDS_B_STATUS_SUCCESS);
@@ -117,8 +129,9 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 
 	/**
 	 * Store a document and return its UUID
+	 * @throws Exception 
 	 */
-	private String storeDocument(ExtrinsicObjectType eot, ProvideAndRegisterDocumentSetRequestType request) {
+	protected String storeDocument(ExtrinsicObjectType eot, ProvideAndRegisterDocumentSetRequestType request) throws Exception {
 		String docId = eot.getId();
 		
 		List<Document> docList = request.getDocument();
@@ -130,32 +143,82 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			}
 		}
 		
-		String typeCode = null;
-		String formatCode = null;
+		CodedValue typeCode = null;
+		CodedValue formatCode = null;
 		String contentType = null;
 		List<ClassificationType> classificationList = eot.getClassification();
 		for (ClassificationType ct : classificationList) {
-			if (ct.getClassificationScheme().equals("urn:uuid:aa543740-bdda-424e-8c96-df4873be8500")) {
-				typeCode = ct.getNodeRepresentation();
+			if (ct.getClassificationScheme().equals(XDSConstants.UUID_XDSDocumentEntry_healthCareFacilityTypeCode)) {
+				typeCode = new CodedValue(ct.getNodeRepresentation(), ct.getClassificationScheme());
 			}
-			if (ct.getClassificationScheme().equals("urn:uuid:a09d5840-386c-46f2-b5ad-9c3699a4309d")) {
-				formatCode = ct.getNodeRepresentation();
+			if (ct.getClassificationScheme().equals(XDSConstants.UUID_XDSDocumentEntry_formatCode)) {
+				formatCode = new CodedValue(ct.getNodeRepresentation(), ct.getClassificationScheme());
 			}
 		}
 		
-		/*
 		Content content = new Content(document.getValue().toString(), typeCode, formatCode, contentType);
 		
 		ContentHandlerService chs = Context.getService(ContentHandlerService.class);
 		ContentHandler defaultHandler = chs.getDefaultHandler(typeCode, formatCode);
 		ContentHandler discreteHandler = chs.getContentHandler(typeCode, formatCode);
+		
+		Patient patient = findOrCreatePatient(eot);
+		Provider provider = findOrCreateProvider(eot);
+		EncounterType encounterType = findOrCreateEncounterType(eot);
+		EncounterRole role = findOrCreateEncounterRole(eot);
 				
 		defaultHandler.saveContent(patient, provider, role, encounterType, content);
-		discreteHandler.saveContent(patient, provider, role, encounterType, content);
-		*/
+		if (discreteHandler != null) {
+			discreteHandler.saveContent(patient, provider, role, encounterType, content);
+		}
 		
 	    return null;
     }
+
+	protected EncounterRole findOrCreateEncounterRole(ExtrinsicObjectType eot) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	protected EncounterType findOrCreateEncounterType(ExtrinsicObjectType eot) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	protected Provider findOrCreateProvider(ExtrinsicObjectType eot) {
+		// TODO Auto-generated method stub
+		return null;
+	}
+
+	protected Patient findOrCreatePatient(ExtrinsicObjectType eot) throws Exception {
+		String patCX = InfosetUtil.getExternalIdentifierValue(XDSConstants.UUID_XDSDocumentEntry_patientId, eot);
+		patCX.replaceAll("&amp;", "&");
+		String patId = patCX.substring(0, patCX.indexOf('^'));
+		String assigningAuthority = patCX.substring(patCX.indexOf('&') + 1, patCX.lastIndexOf('&'));
+		
+		PatientService ps = Context.getPatientService();
+		// TODO: Is this correct, should be have patient identifier with the name as the assigning authority
+		PatientIdentifierType idType = ps.getPatientIdentifierTypeByName(assigningAuthority);
+		if (idType == null) {
+			// create new idType
+			idType = new PatientIdentifierType();
+			idType.setName(assigningAuthority);
+			idType.setDescription("ID type for assigning authority: '" + assigningAuthority + "'. Created by the xds-b-repository module.");
+			idType = ps.savePatientIdentifierType(idType);
+		}
+		
+		List<Patient> patients = ps.getPatients(null, patId, Collections.singletonList(idType), true);
+		
+		if (patients.size() > 1) {
+			// TODO create a proper exception
+			throw new Exception("Multiple patients found for this identifier: " + patId + ", with id type: " + assigningAuthority);
+		} else if (patients.size() < 1) {
+			// Create a new patient
+			return null;
+		} else {
+			return patients.get(0);
+		}
+	}
 
 	/**
 	 * Get the URL of the registry
