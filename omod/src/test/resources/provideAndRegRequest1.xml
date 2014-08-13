@@ -31,9 +31,9 @@
                 <rim:Slot name="sourcePatientInfo">
                     <rim:ValueList>
                         <rim:Value>PID-3|pid1^^^&amp;1.2.3&amp;ISO</rim:Value>
-                        <rim:Value>PID-5|Doe^John^^^</rim:Value>
-                        <rim:Value>PID-7|19560527</rim:Value>
-                        <rim:Value>PID-8|M</rim:Value>
+                        <rim:Value>PID-5|Doe^Jane^^^</rim:Value>
+                        <rim:Value>PID-7|19860101</rim:Value>
+                        <rim:Value>PID-8|F</rim:Value>
                         <rim:Value>PID-11|100 Main St^^Metropolis^Il^44130^USA</rim:Value>
                     </rim:ValueList>
                 </rim:Slot>
@@ -183,7 +183,7 @@
                 </rim:Classification>
                 <rim:ExternalIdentifier
                     identificationScheme="urn:uuid:58a6f841-87b3-4a3e-92fd-a8ffeff98427"
-                    value="76cc765a442f410^^^&amp;1.3.6.1.4.1.21367.2005.3.7&amp;ISO"
+                    value="1111111111^^^&amp;1.2.3&amp;ISO"
                     objectType="urn:oasis:names:tc:ebxml-regrep:ObjectType:RegistryObject:ExternalIdentifier"
                     id="id_9" registryObject="Document01">
                     <rim:Name>

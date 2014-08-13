@@ -210,6 +210,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			idType = new PatientIdentifierType();
 			idType.setName(assigningAuthority);
 			idType.setDescription("ID type for assigning authority: '" + assigningAuthority + "'. Created by the xds-b-repository module.");
+			idType.setValidator("");
 			idType = ps.savePatientIdentifierType(idType);
 		}
 		
