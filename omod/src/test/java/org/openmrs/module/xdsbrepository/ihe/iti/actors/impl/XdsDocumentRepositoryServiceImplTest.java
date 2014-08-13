@@ -23,6 +23,7 @@ import org.junit.Test;
 import org.openmrs.Patient;
 import org.openmrs.PatientIdentifierType;
 import org.openmrs.PersonAddress;
+import org.openmrs.Provider;
 import org.openmrs.api.PatientService;
 import org.openmrs.api.context.Context;
 import org.openmrs.test.BaseModuleContextSensitiveTest;
@@ -101,6 +102,46 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 			assertEquals("Doe", pat.getFamilyName());
 			// This is a name that only OpenMRS knows about
 			assertEquals("Sarah", pat.getMiddleName());
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void findOrCreateProvider_shouldFindAnExistingProvider() {
+		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
+		try {
+			File file = new File("src/test/resources/provideAndRegRequest1.xml");
+			ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
+			List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+			ExtrinsicObjectType eo = extrinsicObjects.get(0);
+			
+			Provider pro = service.findOrCreateProvider(eo);
+			
+			assertNotNull(pro);
+			assertEquals("pro111", pro.getIdentifier());
+			assertEquals("Gerald Smitty", pro.getName());
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void findOrCreateProvider_shouldCreateANewProviderIfNoProviderCanBeFound() {
+		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
+		try {
+			File file = new File("src/test/resources/provideAndRegRequest2.xml");
+			ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
+			List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+			ExtrinsicObjectType eo = extrinsicObjects.get(0);
+			
+			Provider pro = service.findOrCreateProvider(eo);
+			
+			assertNotNull(pro);
+			assertEquals("pro222", pro.getIdentifier());
+			assertEquals("Jack Provider - omrs", pro.getName());
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());

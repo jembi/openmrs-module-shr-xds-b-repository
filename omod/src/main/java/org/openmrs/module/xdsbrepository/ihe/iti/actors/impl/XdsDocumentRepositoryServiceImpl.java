@@ -9,7 +9,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
-import javax.xml.bind.JAXBElement;
+import javax.xml.bind.JAXBException;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -20,7 +20,6 @@ import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetRequestType;
 import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetResponseType;
 import org.dcm4chee.xds2.infoset.rim.ClassificationType;
 import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
-import org.dcm4chee.xds2.infoset.rim.IdentifiableType;
 import org.dcm4chee.xds2.infoset.rim.RegistryError;
 import org.dcm4chee.xds2.infoset.rim.RegistryErrorList;
 import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
@@ -32,11 +31,13 @@ import org.openmrs.EncounterType;
 import org.openmrs.Patient;
 import org.openmrs.PatientIdentifier;
 import org.openmrs.PatientIdentifierType;
+import org.openmrs.Person;
 import org.openmrs.PersonAddress;
 import org.openmrs.PersonName;
 import org.openmrs.Provider;
 import org.openmrs.api.AdministrationService;
 import org.openmrs.api.PatientService;
+import org.openmrs.api.ProviderService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.shr.contenthandler.api.CodedValue;
 import org.openmrs.module.shr.contenthandler.api.Content;
@@ -181,23 +182,79 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	    return null;
     }
 
-	protected EncounterRole findOrCreateEncounterRole(ExtrinsicObjectType eot) {
+	protected EncounterRole findOrCreateEncounterRole(ExtrinsicObjectType eo) {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
-	protected EncounterType findOrCreateEncounterType(ExtrinsicObjectType eot) {
+	protected EncounterType findOrCreateEncounterType(ExtrinsicObjectType eo) {
 		// TODO Auto-generated method stub
 		return null;
 	}
 
-	protected Provider findOrCreateProvider(ExtrinsicObjectType eot) {
-		// TODO Auto-generated method stub
+	protected Provider findOrCreateProvider(ExtrinsicObjectType eo) throws JAXBException {
+		List<Map<String,SlotType1>> classificationSlotsFromExtrinsicObject = this.getClassificationSlotsFromExtrinsicObject(XDSConstants.UUID_XDSDocumentEntry_author, eo);
+		for (Map<String, SlotType1> slotMap : classificationSlotsFromExtrinsicObject) {
+			if (slotMap.containsKey(XDSConstants.SLOT_NAME_AUTHOR_PERSON)) {
+				SlotType1 slot = slotMap.get(XDSConstants.SLOT_NAME_AUTHOR_PERSON);
+				String authorXCN = slot.getValueList().getValue().get(0);
+				String[] xcnComponents = authorXCN.split("\\^", -1);
+				
+				if (!xcnComponents[0].isEmpty()) {
+					// there is an identifier
+					ProviderService ps = Context.getProviderService();
+					Provider pro = ps.getProviderByIdentifier(xcnComponents[0]);
+					
+					if (pro != null) {
+						return pro;
+					} else {
+						// create a provider
+						pro = new Provider();
+						pro.setIdentifier(xcnComponents[0]);
+						
+						if (xcnComponents.length >= 3 && !xcnComponents[2].isEmpty() && !xcnComponents[1].isEmpty()) {
+							// if there are name components
+							StringBuffer sb = new StringBuffer();
+							sb.append(xcnComponents[2] + " " + xcnComponents[1]);
+							pro.setName(sb.toString());
+						} else {
+							// set the name to the id as that's add we have?
+							pro.setName(xcnComponents[0]);
+						}
+						
+						return ps.saveProvider(pro);
+					}
+				}
+			}
+			// TODO: process multiple authors...
+		}
+		
 		return null;
 	}
 
-	protected Patient findOrCreatePatient(ExtrinsicObjectType eot) throws Exception {
-		String patCX = InfosetUtil.getExternalIdentifierValue(XDSConstants.UUID_XDSDocumentEntry_patientId, eot);
+	/**
+	 * @param classificationScheme - The classification scheme to look for
+	 * @param eo - The extrinsic object to process
+	 * @return A list of maps, each item in the list represents a classification definition for
+	 * this scheme. There may be multiple of these. Each list item contains a map of SlotType1
+	 * objects keyed by their slot name.
+	 * @throws JAXBException
+	 */
+	private List<Map<String, SlotType1>> getClassificationSlotsFromExtrinsicObject(String classificationScheme, ExtrinsicObjectType eo) throws JAXBException {
+		List<ClassificationType> classifications = eo.getClassification();
+		
+		List<Map<String, SlotType1>> classificationMaps = new ArrayList<Map<String, SlotType1>>();
+		for (ClassificationType c : classifications) {
+			if (c.getClassificationScheme().equals(classificationScheme)) {
+				Map<String, SlotType1> slotsFromRegistryObject = InfosetUtil.getSlotsFromRegistryObject(c);
+				classificationMaps.add(slotsFromRegistryObject);
+			}
+		}
+		return classificationMaps;
+	}
+
+	protected Patient findOrCreatePatient(ExtrinsicObjectType eo) throws Exception {
+		String patCX = InfosetUtil.getExternalIdentifierValue(XDSConstants.UUID_XDSDocumentEntry_patientId, eo);
 		patCX.replaceAll("&amp;", "&");
 		String patId = patCX.substring(0, patCX.indexOf('^'));
 		String assigningAuthority = patCX.substring(patCX.indexOf('&') + 1, patCX.lastIndexOf('&'));
@@ -221,7 +278,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			throw new Exception("Multiple patients found for this identifier: " + patId + ", with id type: " + assigningAuthority);
 		} else if (patients.size() < 1) {
 			// Create a new patient
-			Map<String, SlotType1> slots = InfosetUtil.getSlotsFromRegistryObject(eot);
+			Map<String, SlotType1> slots = InfosetUtil.getSlotsFromRegistryObject(eo);
 			SlotType1 patInfoSlot = slots.get(XDSConstants.SLOT_NAME_SOURCE_PATIENT_INFO);
 			List<String> valueList = patInfoSlot.getValueList().getValue();
 			
