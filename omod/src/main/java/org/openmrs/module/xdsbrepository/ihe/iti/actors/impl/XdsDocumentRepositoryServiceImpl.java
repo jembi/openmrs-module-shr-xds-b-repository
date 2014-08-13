@@ -88,7 +88,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			this.startSession();
 			
 			URL registryURL = this.getRegistryUrl();
-			List<ExtrinsicObjectType> extrinsicObjects = this.getExtrinsicObjects(request);
+			List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
 			extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
 			
 			// Save each document
@@ -292,22 +292,6 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	    String url = as.getGlobalProperty(XDS_REGISTRY_URL_GP);
 	    
 		return new URL(url);
-    }
-
-	/**
-	 * Get a list of all extrinsic objects in the submission package
-	 */
-	private List<ExtrinsicObjectType> getExtrinsicObjects(ProvideAndRegisterDocumentSetRequestType request) {
-		List<ExtrinsicObjectType> extrObjs = new ArrayList<ExtrinsicObjectType>();
-        List<JAXBElement<? extends IdentifiableType>> list = request.getSubmitObjectsRequest().getRegistryObjectList().getIdentifiable();
-        IdentifiableType o;
-        for ( int i = 0, len = list.size() ; i < len ; i++ ) {
-            o = list.get(i).getValue();
-            if ( o instanceof ExtrinsicObjectType) {
-                extrObjs.add((ExtrinsicObjectType) o);
-            }
-        }
-        return extrObjs;
     }
 
 	/**
