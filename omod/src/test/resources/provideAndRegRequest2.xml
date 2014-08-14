@@ -59,7 +59,7 @@
                     </rim:Slot>
                     <rim:Slot name="authorRole">
                         <rim:ValueList>
-                            <rim:Value>Attending</rim:Value>
+                            <rim:Value>Nurse</rim:Value>
                         </rim:ValueList>
                     </rim:Slot>
                     <rim:Slot name="authorSpecialty">
@@ -86,7 +86,7 @@
                     </rim:Slot>
                     <rim:Slot name="authorRole">
                         <rim:ValueList>
-                            <rim:Value>Primary Surgon</rim:Value>
+                            <rim:Value>Primary Surgeon</rim:Value>
                         </rim:ValueList>
                     </rim:Slot>
                     <rim:Slot name="authorSpecialty">

@@ -6,8 +6,11 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.xml.bind.JAXBException;
 
@@ -31,11 +34,11 @@ import org.openmrs.EncounterType;
 import org.openmrs.Patient;
 import org.openmrs.PatientIdentifier;
 import org.openmrs.PatientIdentifierType;
-import org.openmrs.Person;
 import org.openmrs.PersonAddress;
 import org.openmrs.PersonName;
 import org.openmrs.Provider;
 import org.openmrs.api.AdministrationService;
+import org.openmrs.api.EncounterService;
 import org.openmrs.api.PatientService;
 import org.openmrs.api.ProviderService;
 import org.openmrs.api.context.Context;
@@ -59,6 +62,11 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	public static final String WS_PASSWORD_GP = "xds-b-repository.ws.password";
 	
 	public static final String XDS_REGISTRY_URL_GP = "xds-b-repository.xdsregistry.url";
+	
+	public static final String SLOT_NAME_AUTHOR_ROLE = "authorRole";
+	public static final String SLOT_NAME_AUTHOR_INSTITUTION = "authorInstitution";
+	public static final String SLOT_NAME_AUTHOR_SPECIALITY = "authorSpecialty";
+	public static final String SLOT_NAME_AUTHOR_TELECOM = "authorTelecommunication";
 	
 	// Get the clinical statement service
 	protected final Log log = LogFactory.getLog(this.getClass());
@@ -170,65 +178,115 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 		ContentHandler discreteHandler = chs.getContentHandler(typeCode, formatCode);
 		
 		Patient patient = findOrCreatePatient(eot);
-		Provider provider = findOrCreateProvider(eot);
+		Map<EncounterRole, Set<Provider>> providersByRole = findOrCreateProvidersByRole(eot);
 		EncounterType encounterType = findOrCreateEncounterType(eot);
-		EncounterRole role = findOrCreateEncounterRole(eot);
-				
-		defaultHandler.saveContent(patient, provider, role, encounterType, content);
+		
+		// always send to the default handler
+		defaultHandler.saveContent(patient, providersByRole, encounterType, content);
+		// If another handler exists send to that as well
 		if (discreteHandler != null) {
-			discreteHandler.saveContent(patient, provider, role, encounterType, content);
+			discreteHandler.saveContent(patient, providersByRole, encounterType, content);
 		}
 		
 	    return null;
     }
 
-	protected EncounterRole findOrCreateEncounterRole(ExtrinsicObjectType eo) {
-		// TODO Auto-generated method stub
-		return null;
-	}
-
 	protected EncounterType findOrCreateEncounterType(ExtrinsicObjectType eo) {
-		// TODO Auto-generated method stub
 		return null;
 	}
 
-	protected Provider findOrCreateProvider(ExtrinsicObjectType eo) throws JAXBException {
-		List<Map<String,SlotType1>> classificationSlotsFromExtrinsicObject = this.getClassificationSlotsFromExtrinsicObject(XDSConstants.UUID_XDSDocumentEntry_author, eo);
-		for (Map<String, SlotType1> slotMap : classificationSlotsFromExtrinsicObject) {
-			if (slotMap.containsKey(XDSConstants.SLOT_NAME_AUTHOR_PERSON)) {
-				SlotType1 slot = slotMap.get(XDSConstants.SLOT_NAME_AUTHOR_PERSON);
-				String authorXCN = slot.getValueList().getValue().get(0);
-				String[] xcnComponents = authorXCN.split("\\^", -1);
-				
-				if (!xcnComponents[0].isEmpty()) {
-					// there is an identifier
-					ProviderService ps = Context.getProviderService();
-					Provider pro = ps.getProviderByIdentifier(xcnComponents[0]);
+	protected Map<EncounterRole, Set<Provider>> findOrCreateProvidersByRole(ExtrinsicObjectType eo) throws JAXBException {
+		EncounterService es = Context.getEncounterService();
+		EncounterRole unkownRole = es.getEncounterRoleByUuid(EncounterRole.UNKNOWN_ENCOUNTER_ROLE_UUID);
+		
+		Map<EncounterRole, Set<Provider>> providersByRole = new HashMap<EncounterRole, Set<Provider>>();
+		
+		List<Map<String,SlotType1>> authorClassSlots = this.getClassificationSlotsFromExtrinsicObject(XDSConstants.UUID_XDSDocumentEntry_author, eo);
+		for (Map<String, SlotType1> slotMap : authorClassSlots) {
+			// find/create a provider for this classification instance
+			Provider provider = findOrCreateProvider(slotMap);
+			
+			if (slotMap.containsKey(SLOT_NAME_AUTHOR_ROLE)) {
+				// role(s) have been provided
+				SlotType1 slot = slotMap.get(SLOT_NAME_AUTHOR_ROLE);
+				List<String> valueList = slot.getValueList().getValue();
+				for (String authorRole : valueList) {
+					// iterate though roles for this author and find/create a provider for those roles
+					// TODO: the the 'getEncounterRoleByName()' in the EncounterService when it is available (OMRS 1.11.0)
+					EncounterRole role = this.getEncounterRoleByName(authorRole);
+					if (role == null) {
+						// Create new encounter role
+						role = new EncounterRole();
+						role.setName(authorRole);
+						role.setDescription("Created by XDS.b module.");
+						role = es.saveEncounterRole(role);
+					}
 					
-					if (pro != null) {
-						return pro;
+					if (providersByRole.containsKey(role)) {
+						providersByRole.get(role).add(provider);
 					} else {
-						// create a provider
-						pro = new Provider();
-						pro.setIdentifier(xcnComponents[0]);
-						
-						if (xcnComponents.length >= 3 && !xcnComponents[2].isEmpty() && !xcnComponents[1].isEmpty()) {
-							// if there are name components
-							StringBuffer sb = new StringBuffer();
-							sb.append(xcnComponents[2] + " " + xcnComponents[1]);
-							pro.setName(sb.toString());
-						} else {
-							// set the name to the id as that's add we have?
-							pro.setName(xcnComponents[0]);
-						}
-						
-						return ps.saveProvider(pro);
+						Set<Provider> providers = new HashSet<Provider>();
+						providers.add(provider);
+						providersByRole.put(role, providers);
 					}
 				}
+			} else {
+				// no role provided, making do with an unknown role
+				if (providersByRole.containsKey(unkownRole)) {
+					providersByRole.get(unkownRole).add(provider);
+				} else {
+					Set<Provider> providers = new HashSet<Provider>();
+					providers.add(provider);
+					providersByRole.put(unkownRole, providers);
+				}
 			}
-			// TODO: process multiple authors...
 		}
 		
+		return providersByRole;
+	}
+
+	private EncounterRole getEncounterRoleByName(String authorRole) {
+		EncounterService es = Context.getEncounterService();
+		for (EncounterRole role : es.getAllEncounterRoles(false)) {
+			if (role.getName().equals(authorRole)) {
+				return role;
+			}
+		}
+		return null;
+	}
+
+	private Provider findOrCreateProvider(Map<String, SlotType1> authorSlotMap) {
+		if (authorSlotMap.containsKey(XDSConstants.SLOT_NAME_AUTHOR_PERSON)) {
+			SlotType1 slot = authorSlotMap.get(XDSConstants.SLOT_NAME_AUTHOR_PERSON);
+			String authorXCN = slot.getValueList().getValue().get(0);
+			String[] xcnComponents = authorXCN.split("\\^", -1);
+			
+			if (!xcnComponents[0].isEmpty()) {
+				// there is an identifier
+				ProviderService ps = Context.getProviderService();
+				Provider pro = ps.getProviderByIdentifier(xcnComponents[0]);
+				
+				if (pro != null) {
+					return pro;
+				} else {
+					// create a provider
+					pro = new Provider();
+					pro.setIdentifier(xcnComponents[0]);
+					
+					if (xcnComponents.length >= 3 && !xcnComponents[2].isEmpty() && !xcnComponents[1].isEmpty()) {
+						// if there are name components
+						StringBuffer sb = new StringBuffer();
+						sb.append(xcnComponents[2] + " " + xcnComponents[1]);
+						pro.setName(sb.toString());
+					} else {
+						// set the name to the id as that's add we have?
+						pro.setName(xcnComponents[0]);
+					}
+					
+					return ps.saveProvider(pro);
+				}
+			}
+		}
 		return null;
 	}
 

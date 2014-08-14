@@ -96,6 +96,33 @@
                     </rim:Slot>
                 </rim:Classification>
                 <rim:Classification
+                    classificationScheme="urn:uuid:93606bcf-9494-43ec-9b4e-a7748d1a838d"
+                    classifiedObject="Document01" nodeRepresentation=""
+                    objectType="urn:oasis:names:tc:ebxml-regrep:ObjectType:RegistryObject:Classification"
+                    id="id_2">
+                    <rim:Slot name="authorPerson">
+                        <rim:ValueList>
+                            <rim:Value>pro113^Doppleganger^Terry^^^</rim:Value>
+                        </rim:ValueList>
+                    </rim:Slot>
+                    <rim:Slot name="authorInstitution">
+                        <rim:ValueList>
+                            <rim:Value>Cleveland Clinic</rim:Value>
+                            <rim:Value>Berea Community</rim:Value>
+                        </rim:ValueList>
+                    </rim:Slot>
+                    <rim:Slot name="authorRole">
+                        <rim:ValueList>
+                            <rim:Value>Primary Surgeon</rim:Value>
+                        </rim:ValueList>
+                    </rim:Slot>
+                    <rim:Slot name="authorSpecialty">
+                        <rim:ValueList>
+                            <rim:Value>Orthopedic</rim:Value>
+                        </rim:ValueList>
+                    </rim:Slot>
+                </rim:Classification>
+                <rim:Classification
                     classificationScheme="urn:uuid:41a5887f-8865-4c09-adf7-e362475b143a"
                     classifiedObject="Document01" nodeRepresentation="History and Physical"
                     objectType="urn:oasis:names:tc:ebxml-regrep:ObjectType:RegistryObject:Classification"

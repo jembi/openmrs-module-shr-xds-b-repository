@@ -9,6 +9,8 @@ import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.text.SimpleDateFormat;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
@@ -20,6 +22,7 @@ import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
 import org.dcm4chee.xds2.infoset.util.InfosetUtil;
 import org.junit.Before;
 import org.junit.Test;
+import org.openmrs.EncounterRole;
 import org.openmrs.Patient;
 import org.openmrs.PatientIdentifierType;
 import org.openmrs.PersonAddress;
@@ -109,7 +112,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 	}
 	
 	@Test
-	public void findOrCreateProvider_shouldFindAnExistingProvider() {
+	public void findOrCreateProvider_shouldCreateNewProvidersAndEncounterRolesIfNoneCanBeFound() {
 		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
 		try {
 			File file = new File("src/test/resources/provideAndRegRequest1.xml");
@@ -117,11 +120,34 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 			List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
 			ExtrinsicObjectType eo = extrinsicObjects.get(0);
 			
-			Provider pro = service.findOrCreateProvider(eo);
+			Map<EncounterRole, Set<Provider>> providersByRole = service.findOrCreateProvidersByRole(eo);
 			
-			assertNotNull(pro);
-			assertEquals("pro111", pro.getIdentifier());
-			assertEquals("Gerald Smitty", pro.getName());
+			for (EncounterRole role : providersByRole.keySet()) {
+				Set<Provider> providers = providersByRole.get(role);
+				if (role.getName().equals("Attending")) {
+					assertEquals(1, providers.size());
+					Provider provider = providers.iterator().next();
+					assertEquals("Gerald Smitty", provider.getName());
+				} else if (role.getName().equals("Primary Surgeon")) {
+					assertEquals(2, providers.size());
+					boolean sherryFound = false;
+					boolean terryFound = false;
+					for (Provider provider : providers) {
+						if (provider.getName().equals("Sherry Dopplemeyer")) {
+							sherryFound = true;
+						}
+						if (provider.getName().equals("Terry Doppleganger")) {
+							terryFound = true;
+						}
+					}
+					if (!sherryFound && terryFound) {
+						fail("Sherry or Terry was not found is the resulting set.");
+					}
+				} else {
+					fail("An unexpected role was found.");
+				}
+			}
+			
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
@@ -129,7 +155,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 	}
 	
 	@Test
-	public void findOrCreateProvider_shouldCreateANewProviderIfNoProviderCanBeFound() {
+	public void findOrCreateProvider_shouldFindAnExistingProviderAndEncounterRole() {
 		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
 		try {
 			File file = new File("src/test/resources/provideAndRegRequest2.xml");
@@ -137,11 +163,26 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 			List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
 			ExtrinsicObjectType eo = extrinsicObjects.get(0);
 			
-			Provider pro = service.findOrCreateProvider(eo);
+			Map<EncounterRole, Set<Provider>> providersByRole = service.findOrCreateProvidersByRole(eo);
 			
-			assertNotNull(pro);
-			assertEquals("pro222", pro.getIdentifier());
-			assertEquals("Jack Provider - omrs", pro.getName());
+			boolean jackFound = false;
+			for (EncounterRole role : providersByRole.keySet()) {
+				Set<Provider> providers = providersByRole.get(role);
+				if (role.getName().equals("Nurse")) {
+					assertEquals(1, providers.size());
+					Provider provider = providers.iterator().next();
+					assertEquals("Jack Provider - omrs", provider.getName());
+					jackFound = true;
+					
+					// test that the encounter role is the one defined in the dataset not a newly created one
+					assertEquals(new Integer(1), role.getId());
+				}
+			}
+			
+			if (!jackFound) {
+				fail("Provider 'Jack Provider' was not found in the resuting map.");
+			}
+			
 		} catch (Exception e) {
 			e.printStackTrace();
 			fail(e.getMessage());
