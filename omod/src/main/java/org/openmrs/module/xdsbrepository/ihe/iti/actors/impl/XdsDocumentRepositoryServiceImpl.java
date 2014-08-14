@@ -191,8 +191,23 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	    return null;
     }
 
-	protected EncounterType findOrCreateEncounterType(ExtrinsicObjectType eo) {
-		return null;
+	protected EncounterType findOrCreateEncounterType(ExtrinsicObjectType eo) throws JAXBException {
+		// TODO: is it ok to only use classcode? should we use format code or type code as well?
+		ClassificationType classCodeCT = this.getClassificationFromExtrinsicObject(XDSConstants.UUID_XDSDocumentEntry_classCode, eo);
+		String classCode = classCodeCT.getNodeRepresentation();
+		
+		EncounterService es = Context.getEncounterService();
+		EncounterType encounterType = es.getEncounterType(classCode);
+		
+		if (encounterType == null) {
+			// create new encounter Type
+			encounterType = new EncounterType();
+			encounterType.setName(classCode);
+			encounterType.setDescription("Created by XDS.b module.");
+			encounterType = es.saveEncounterType(encounterType);
+		}
+		
+		return encounterType;
 	}
 
 	protected Map<EncounterRole, Set<Provider>> findOrCreateProvidersByRole(ExtrinsicObjectType eo) throws JAXBException {
@@ -309,6 +324,24 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			}
 		}
 		return classificationMaps;
+	}
+	
+	/**
+	 * @param classificationScheme - The classification scheme to look for
+	 * @param eo - The extrinsic object to process
+	 * @return The first classification of this type found
+	 * @throws JAXBException
+	 */
+	private ClassificationType getClassificationFromExtrinsicObject(String classificationScheme, ExtrinsicObjectType eo) throws JAXBException {
+		List<ClassificationType> allClassifications = eo.getClassification();
+		
+		List<ClassificationType> classifications = new ArrayList<ClassificationType>();
+		for (ClassificationType c : allClassifications) {
+			if (c.getClassificationScheme().equals(classificationScheme)) {
+				return c;
+			}
+		}
+		return null;
 	}
 
 	protected Patient findOrCreatePatient(ExtrinsicObjectType eo) throws Exception {

@@ -27,7 +27,10 @@
 	<provider provider_id="1" identifier="pro222" name="Jack Provider - omrs"
 		person_id="3" creator="1" date_created="2005-01-01 00:00:00.0"
 		retired="false" uuid="c2299800-cca9-11e0-9572-0800200c9a66" />
-	<encounter_role encounter_role_id="1" name="Nurse"
+	<encounter_role encounter_role_id="2" name="Nurse"
+		creator="1" date_created="2005-01-01 00:00:00.0" retired="false"
+		uuid="27eef570-1405-4ffb-88f5-570f31630734" />
+	<encounter_type encounter_type_id="1" name="History and Physical"
 		creator="1" date_created="2005-01-01 00:00:00.0" retired="false"
 		uuid="27eef570-1405-4ffb-88f5-570f31630734" />
 </dataset>

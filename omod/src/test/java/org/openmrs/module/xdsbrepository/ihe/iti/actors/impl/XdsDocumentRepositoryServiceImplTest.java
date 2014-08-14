@@ -23,6 +23,7 @@ import org.dcm4chee.xds2.infoset.util.InfosetUtil;
 import org.junit.Before;
 import org.junit.Test;
 import org.openmrs.EncounterRole;
+import org.openmrs.EncounterType;
 import org.openmrs.Patient;
 import org.openmrs.PatientIdentifierType;
 import org.openmrs.PersonAddress;
@@ -175,13 +176,51 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 					jackFound = true;
 					
 					// test that the encounter role is the one defined in the dataset not a newly created one
-					assertEquals(new Integer(1), role.getId());
+					assertEquals(new Integer(2), role.getId());
 				}
 			}
 			
 			if (!jackFound) {
 				fail("Provider 'Jack Provider' was not found in the resuting map.");
 			}
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void findOrCreateEncounterType_shouldFindAnExistingEncounterType() {
+		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
+		try {
+			File file = new File("src/test/resources/provideAndRegRequest1.xml");
+			ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
+			List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+			ExtrinsicObjectType eo = extrinsicObjects.get(0);
+			
+			EncounterType encounterType = service.findOrCreateEncounterType(eo);
+			
+			assertEquals(new Integer(1), encounterType.getId());
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
+	@Test
+	public void findOrCreateEncounterType_shouldCreateANewEncounterType() {
+		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
+		try {
+			File file = new File("src/test/resources/provideAndRegRequest2.xml");
+			ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
+			List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+			ExtrinsicObjectType eo = extrinsicObjects.get(0);
+			
+			EncounterType encounterType = service.findOrCreateEncounterType(eo);
+			
+			assertEquals("History and Physical - non existing", encounterType.getName());
 			
 		} catch (Exception e) {
 			e.printStackTrace();

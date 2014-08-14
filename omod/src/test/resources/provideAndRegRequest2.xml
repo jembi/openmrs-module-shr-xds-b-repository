@@ -97,7 +97,7 @@
                 </rim:Classification>
                 <rim:Classification
                     classificationScheme="urn:uuid:41a5887f-8865-4c09-adf7-e362475b143a"
-                    classifiedObject="Document01" nodeRepresentation="History and Physical"
+                    classifiedObject="Document01" nodeRepresentation="History and Physical - non existing"
                     objectType="urn:oasis:names:tc:ebxml-regrep:ObjectType:RegistryObject:Classification"
                     id="id_3">
                     <rim:Slot name="codingScheme">
