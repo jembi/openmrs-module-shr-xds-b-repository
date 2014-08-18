@@ -228,4 +228,23 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 		}
 	}
 	
+	@Test
+	public void storeDocument_shouldCallSaveContentOnTheContentHandler() {
+		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
+		try {
+			File file = new File("src/test/resources/provideAndRegRequest1.xml");
+			ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
+			List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+			ExtrinsicObjectType eo = extrinsicObjects.get(0);
+			
+			String uniqueId = service.storeDocument(eo, request);
+			
+			assertEquals("2009.9.1.2455", uniqueId);
+			
+		} catch (Exception e) {
+			e.printStackTrace();
+			fail(e.getMessage());
+		}
+	}
+	
 }

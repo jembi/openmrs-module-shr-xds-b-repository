@@ -163,7 +163,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 		String contentType = null;
 		List<ClassificationType> classificationList = eot.getClassification();
 		for (ClassificationType ct : classificationList) {
-			if (ct.getClassificationScheme().equals(XDSConstants.UUID_XDSDocumentEntry_healthCareFacilityTypeCode)) {
+			if (ct.getClassificationScheme().equals(XDSConstants.UUID_XDSDocumentEntry_typeCode)) {
 				typeCode = new CodedValue(ct.getNodeRepresentation(), ct.getClassificationScheme());
 			}
 			if (ct.getClassificationScheme().equals(XDSConstants.UUID_XDSDocumentEntry_formatCode)) {
@@ -188,7 +188,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			discreteHandler.saveContent(patient, providersByRole, encounterType, content);
 		}
 		
-	    return null;
+	    return InfosetUtil.getExternalIdentifierValue(XDSConstants.UUID_XDSDocumentEntry_uniqueId, eot);
     }
 
 	protected EncounterType findOrCreateEncounterType(ExtrinsicObjectType eo) throws JAXBException {
