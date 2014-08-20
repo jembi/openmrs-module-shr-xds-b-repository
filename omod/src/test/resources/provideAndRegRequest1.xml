@@ -102,7 +102,7 @@
                     id="id_2">
                     <rim:Slot name="authorPerson">
                         <rim:ValueList>
-                            <rim:Value>pro113^Doppleganger^Terry^^^</rim:Value>
+                            <rim:Value>^Doppleganger^Terry^^^</rim:Value>
                         </rim:ValueList>
                     </rim:Slot>
                     <rim:Slot name="authorInstitution">

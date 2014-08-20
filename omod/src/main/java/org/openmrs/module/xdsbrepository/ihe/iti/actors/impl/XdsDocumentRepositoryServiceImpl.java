@@ -112,6 +112,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 		} catch (Exception e)	{
 			// Log the error
 			log.error(e);
+			e.printStackTrace();
 			
 			Context.clearSession(); // TODO: How to rollback everything?
 			// Error response
@@ -267,38 +268,56 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	}
 
 	private Provider findOrCreateProvider(Map<String, SlotType1> authorSlotMap) {
+		ProviderService ps = Context.getProviderService();
+		
 		if (authorSlotMap.containsKey(XDSConstants.SLOT_NAME_AUTHOR_PERSON)) {
 			SlotType1 slot = authorSlotMap.get(XDSConstants.SLOT_NAME_AUTHOR_PERSON);
 			String authorXCN = slot.getValueList().getValue().get(0);
 			String[] xcnComponents = authorXCN.split("\\^", -1);
 			
+			// attempt to find the provider
 			if (!xcnComponents[0].isEmpty()) {
 				// there is an identifier
-				ProviderService ps = Context.getProviderService();
 				Provider pro = ps.getProviderByIdentifier(xcnComponents[0]);
-				
 				if (pro != null) {
 					return pro;
-				} else {
-					// create a provider
-					pro = new Provider();
-					pro.setIdentifier(xcnComponents[0]);
-					
-					if (xcnComponents.length >= 3 && !xcnComponents[2].isEmpty() && !xcnComponents[1].isEmpty()) {
-						// if there are name components
-						StringBuffer sb = new StringBuffer();
-						sb.append(xcnComponents[2] + " " + xcnComponents[1]);
-						pro.setName(sb.toString());
-					} else {
-						// set the name to the id as that's add we have?
-						pro.setName(xcnComponents[0]);
+				}
+			} else {
+				// we only have a name - this shouldn't happen under OpenHIE as we should always
+				// have a provider id (EPID) - Warning this could get slow...
+				List<Provider> allProviders = ps.getAllProviders();
+				for (Provider pro : allProviders) {
+					if (pro.getName().startsWith(xcnComponents[2]) && pro.getName().contains(xcnComponents[1])) {
+						return pro;
 					}
-					
-					return ps.saveProvider(pro);
 				}
 			}
+			
+			// no provider found - let's create one
+			return createProvider(xcnComponents);
 		}
+		
 		return null;
+	}
+
+	private Provider createProvider(String[] xcnComponents) {
+		ProviderService ps = Context.getProviderService();
+		Provider pro;
+		// create a provider
+		pro = new Provider();
+		pro.setIdentifier(xcnComponents[0]);
+		
+		if (xcnComponents.length >= 3 && !xcnComponents[2].isEmpty() && !xcnComponents[1].isEmpty()) {
+			// if there are name components
+			StringBuffer sb = new StringBuffer();
+			sb.append(xcnComponents[2] + " " + xcnComponents[1]);
+			pro.setName(sb.toString());
+		} else {
+			// set the name to the id as that's add we have?
+			pro.setName(xcnComponents[0]);
+		}
+		
+		return ps.saveProvider(pro);
 	}
 
 	/**
