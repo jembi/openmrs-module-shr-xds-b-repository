@@ -80,6 +80,8 @@
 			<groupId>org.openmrs.module</groupId>
 			<artifactId>shr-contenthandler-api</artifactId>
 			<version>1.2.0</version>
+			<type>jar</type>
+  			<scope>provided</scope>
 		</dependency>
 		
 		<!-- DCM4CHEE modules (for JAX-b classes and InfoSetUtil) -->
