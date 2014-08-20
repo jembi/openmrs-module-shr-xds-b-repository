@@ -1,7 +1,9 @@
 package org.openmrs.module.xdsbrepository.ihe.iti.actors.impl;
 
+import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -39,6 +41,7 @@ import org.openmrs.PersonName;
 import org.openmrs.Provider;
 import org.openmrs.api.AdministrationService;
 import org.openmrs.api.EncounterService;
+import org.openmrs.api.PatientIdentifierException;
 import org.openmrs.api.PatientService;
 import org.openmrs.api.ProviderService;
 import org.openmrs.api.context.Context;
@@ -47,6 +50,7 @@ import org.openmrs.module.shr.contenthandler.api.Content;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
 import org.openmrs.module.shr.contenthandler.api.ContentHandlerService;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.XdsDocumentRepositoryService;
+import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.UnsupportedGenderException;
 import org.openmrs.util.OpenmrsConstants;
 import org.springframework.stereotype.Service;
 
@@ -146,9 +150,14 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 
 	/**
 	 * Store a document and return its UUID
-	 * @throws Exception 
+	 * 
+	 * @throws UnsupportedEncodingException 
+	 * @throws UnsupportedGenderException 
+	 * @throws ParseException 
+	 * @throws JAXBException 
+	 * @throws PatientIdentifierException 
 	 */
-	protected String storeDocument(ExtrinsicObjectType eot, ProvideAndRegisterDocumentSetRequestType request) throws Exception {
+	protected String storeDocument(ExtrinsicObjectType eot, ProvideAndRegisterDocumentSetRequestType request) throws UnsupportedEncodingException, PatientIdentifierException, JAXBException, ParseException, UnsupportedGenderException {
 		String docId = eot.getId();
 		Map<String, Document> docs = InfosetUtil.getDocuments(request);
 		Document document = docs.get(docId);
@@ -188,6 +197,13 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	    return InfosetUtil.getExternalIdentifierValue(XDSConstants.UUID_XDSDocumentEntry_uniqueId, eot);
     }
 
+	/**
+	 * Finds an existing encounter type or create a new one if one cannot be found
+	 * 
+	 * @param eo the ExtrinsicObject that represents the document in question
+	 * @return an encounter type
+	 * @throws JAXBException
+	 */
 	protected EncounterType findOrCreateEncounterType(ExtrinsicObjectType eo) throws JAXBException {
 		// TODO: is it ok to only use classcode? should we use format code or type code as well?
 		ClassificationType classCodeCT = this.getClassificationFromExtrinsicObject(XDSConstants.UUID_XDSDocumentEntry_classCode, eo);
@@ -207,6 +223,14 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 		return encounterType;
 	}
 
+	/**
+	 * Extracts provider and role information from the document metadata and creates a
+	 * map of encounter roles to providers as needed by OpenMRS
+	 * 
+	 * @param eo the ExtrinsicObject that represents the document in question
+	 * @return a map of encounter roles to a set of providers that participates in the encounter using that role
+	 * @throws JAXBException
+	 */
 	protected Map<EncounterRole, Set<Provider>> findOrCreateProvidersByRole(ExtrinsicObjectType eo) throws JAXBException {
 		EncounterService es = Context.getEncounterService();
 		EncounterRole unkownRole = es.getEncounterRoleByUuid(EncounterRole.UNKNOWN_ENCOUNTER_ROLE_UUID);
@@ -224,7 +248,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 				List<String> valueList = slot.getValueList().getValue();
 				for (String authorRole : valueList) {
 					// iterate though roles for this author and find/create a provider for those roles
-					// TODO: the the 'getEncounterRoleByName()' in the EncounterService when it is available (OMRS 1.11.0)
+					// TODO: use the 'getEncounterRoleByName()' in the EncounterService when it is available (OMRS 1.11.0)
 					EncounterRole role = this.getEncounterRoleByName(authorRole);
 					if (role == null) {
 						// Create new encounter role
@@ -257,6 +281,12 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 		return providersByRole;
 	}
 
+	/**
+	 * Fetches an encounter role by name
+	 * 
+	 * @param authorRole the name to use
+	 * @return the encounter role
+	 */
 	private EncounterRole getEncounterRoleByName(String authorRole) {
 		EncounterService es = Context.getEncounterService();
 		for (EncounterRole role : es.getAllEncounterRoles(false)) {
@@ -267,6 +297,12 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 		return null;
 	}
 
+	/**
+	 * Find a provider or creates a new one if one cannot be found
+	 * 
+	 * @param authorSlotMap a map of slot names to SLot objects from the author classification
+	 * @return
+	 */
 	private Provider findOrCreateProvider(Map<String, SlotType1> authorSlotMap) {
 		ProviderService ps = Context.getProviderService();
 		
@@ -294,12 +330,18 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			}
 			
 			// no provider found - let's create one
-			return createProvider(xcnComponents);
+			return ps.saveProvider(createProvider(xcnComponents));
 		}
 		
 		return null;
 	}
 
+	/**
+	 * Create a provider
+	 * 
+	 * @param xcnComponents
+	 * @return a new provider object
+	 */
 	private Provider createProvider(String[] xcnComponents) {
 		ProviderService ps = Context.getProviderService();
 		Provider pro;
@@ -317,7 +359,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			pro.setName(xcnComponents[0]);
 		}
 		
-		return ps.saveProvider(pro);
+		return pro;
 	}
 
 	/**
@@ -359,14 +401,24 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 		return null;
 	}
 
-	protected Patient findOrCreatePatient(ExtrinsicObjectType eo) throws Exception {
+	/**
+	 * Attempt to find a patient, if one doesn't exist it creates a new patient
+	 * 
+	 * @param eo the ExtrinsicObject that represents the document in question
+	 * @return a patient
+	 * @throws PatientIdentifierException if there are multiple patient found with the id specified in eo
+	 * @throws UnsupportedGenderException if the gender code is not supported by OpenMRS
+	 * @throws ParseException 
+	 * @throws JAXBException 
+	 */
+	protected Patient findOrCreatePatient(ExtrinsicObjectType eo) throws PatientIdentifierException, JAXBException, ParseException, UnsupportedGenderException {
 		String patCX = InfosetUtil.getExternalIdentifierValue(XDSConstants.UUID_XDSDocumentEntry_patientId, eo);
 		patCX.replaceAll("&amp;", "&");
 		String patId = patCX.substring(0, patCX.indexOf('^'));
 		String assigningAuthority = patCX.substring(patCX.indexOf('&') + 1, patCX.lastIndexOf('&'));
 		
 		PatientService ps = Context.getPatientService();
-		// TODO: Is this correct, should be have patient identifier with the name as the assigning authority
+		// TODO: Is this correct, should we have patient identifier with the name as the assigning authority
 		PatientIdentifierType idType = ps.getPatientIdentifierTypeByName(assigningAuthority);
 		if (idType == null) {
 			// create new idType
@@ -380,70 +432,106 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 		List<Patient> patients = ps.getPatients(null, patId, Collections.singletonList(idType), true);
 		
 		if (patients.size() > 1) {
-			// TODO create a proper exception
-			throw new Exception("Multiple patients found for this identifier: " + patId + ", with id type: " + assigningAuthority);
+			throw new PatientIdentifierException("Multiple patients found for this identifier: " + patId + ", with id type: " + assigningAuthority);
 		} else if (patients.size() < 1) {
-			// Create a new patient
-			Map<String, SlotType1> slots = InfosetUtil.getSlotsFromRegistryObject(eo);
-			SlotType1 patInfoSlot = slots.get(XDSConstants.SLOT_NAME_SOURCE_PATIENT_INFO);
-			List<String> valueList = patInfoSlot.getValueList().getValue();
-			
-			SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
-			Patient pat = new Patient();
-			
-			PatientIdentifier pi = new PatientIdentifier(patId, idType, Context.getLocationService().getDefaultLocation());
-			pat.addIdentifier(pi);
-			
-			for (String val : valueList) {
-				if (val.startsWith("PID-3|")) {
-					// patient ID - ignore source patient id in favour of enterprise patient id
-				} else if (val.startsWith("PID-5|")) {
-					// patient name
-					val = val.replace("PID-5|", "");
-					String[] nameComponents = val.split("\\^", -1);
-					PersonName pn = new PersonName(nameComponents[1], null, nameComponents[0]);
-					try {
-						pn.setMiddleName(nameComponents[2]);
-						pn.setFamilyNameSuffix(nameComponents[3]);
-						pn.setPrefix(nameComponents[4]);
-						pn.setDegree(nameComponents[5]);
-					} catch (ArrayIndexOutOfBoundsException e) {
-						// ignore, these aren't important if they don't exist
-					}
-					pat.addName(pn);
-				} else if (val.startsWith("PID-7|")) {
-					// patient date of birth
-					val = val.replace("PID-7|", "");
-					Date dob = sdf.parse(val);
-					pat.setBirthdate(dob);
-				} else if (val.startsWith("PID-8|")) {
-					// patient gender
-					val = val.replace("PID-8|", "");
-					if (val.equalsIgnoreCase("O") || val.equalsIgnoreCase("U") || val.equalsIgnoreCase("A") || val.equalsIgnoreCase("N")) {
-						throw new Exception("OpenMRS does not support genders other than male or female.");
-					}
-					pat.setGender(val);
-				} else if (val.startsWith("PID-11|")) {
-					// patient address
-					val = val.replace("PID-11|", "");
-					String[] addrComponents = val.split("\\^", -1);
-					PersonAddress pa = new PersonAddress();
-					pa.setAddress1(addrComponents[0]);
-					pa.setAddress2(addrComponents[1]);
-					pa.setCityVillage(addrComponents[2]);
-					pa.setStateProvince(addrComponents[3]);
-					pa.setPostalCode(addrComponents[4]);
-					pa.setCountry(addrComponents[5]);
-					pat.addAddress(pa);
-				} else {
-					log.warn("Found an unknown value in the sourcePatientInfo slot: " + val);
-				}
-			}
-			
-			return ps.savePatient(pat);
+			return ps.savePatient(createPatient(eo, patId, idType));
 		} else {
 			return patients.get(0);
 		}
+	}
+
+	/**
+	 * Create a new patient object from document metadata
+	 * 
+	 * @param eo the ExtrinsicObject that represents the document in question
+	 * @param patId the patients unique ID
+	 * @param idType the patient id type
+	 * @return a newly created patient object
+	 * @throws JAXBException
+	 * @throws ParseException
+	 * @throws UnsupportedGenderException
+	 */
+	private Patient createPatient(ExtrinsicObjectType eo, String patId, PatientIdentifierType idType)
+			throws JAXBException, ParseException, UnsupportedGenderException {
+		Map<String, SlotType1> slots = InfosetUtil.getSlotsFromRegistryObject(eo);
+		SlotType1 patInfoSlot = slots.get(XDSConstants.SLOT_NAME_SOURCE_PATIENT_INFO);
+		List<String> valueList = patInfoSlot.getValueList().getValue();
+		
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
+		Patient pat = new Patient();
+		
+		PatientIdentifier pi = new PatientIdentifier(patId, idType, Context.getLocationService().getDefaultLocation());
+		pat.addIdentifier(pi);
+		
+		for (String val : valueList) {
+			if (val.startsWith("PID-3|")) {
+				// patient ID - ignore source patient id in favour of enterprise patient id
+			} else if (val.startsWith("PID-5|")) {
+				// patient name
+				val = val.replace("PID-5|", "");
+				String[] nameComponents = val.split("\\^", -1);
+				PersonName pn = createPatientName(nameComponents);
+				pat.addName(pn);
+			} else if (val.startsWith("PID-7|")) {
+				// patient date of birth
+				val = val.replace("PID-7|", "");
+				Date dob = sdf.parse(val);
+				pat.setBirthdate(dob);
+			} else if (val.startsWith("PID-8|")) {
+				// patient gender
+				val = val.replace("PID-8|", "");
+				if (val.equalsIgnoreCase("O") || val.equalsIgnoreCase("U") || val.equalsIgnoreCase("A") || val.equalsIgnoreCase("N")) {
+					throw new UnsupportedGenderException("OpenMRS does not support genders other than male or female.");
+				}
+				pat.setGender(val);
+			} else if (val.startsWith("PID-11|")) {
+				// patient address
+				val = val.replace("PID-11|", "");
+				String[] addrComponents = val.split("\\^", -1);
+				PersonAddress pa = createPatientAddress(addrComponents);
+				pat.addAddress(pa);
+			} else {
+				log.warn("Found an unknown value in the sourcePatientInfo slot: " + val);
+			}
+		}
+		
+		return pat;
+	}
+
+	/**
+	 * Create a patient name
+	 * 
+	 * @param nameComponents
+	 * @return
+	 */
+	private PersonName createPatientName(String[] nameComponents) {
+		PersonName pn = new PersonName(nameComponents[1], null, nameComponents[0]);
+		try {
+			pn.setMiddleName(nameComponents[2]);
+			pn.setFamilyNameSuffix(nameComponents[3]);
+			pn.setPrefix(nameComponents[4]);
+			pn.setDegree(nameComponents[5]);
+		} catch (ArrayIndexOutOfBoundsException e) {
+			// ignore, these aren't important if they don't exist
+		}
+		return pn;
+	}
+
+	/**
+	 * Create a patient address
+	 * 
+	 * @param addrComponents
+	 * @return
+	 */
+	private PersonAddress createPatientAddress(String[] addrComponents) {
+		PersonAddress pa = new PersonAddress();
+		pa.setAddress1(addrComponents[0]);
+		pa.setAddress2(addrComponents[1]);
+		pa.setCityVillage(addrComponents[2]);
+		pa.setStateProvince(addrComponents[3]);
+		pa.setPostalCode(addrComponents[4]);
+		pa.setCountry(addrComponents[5]);
+		return pa;
 	}
 
 	/**
