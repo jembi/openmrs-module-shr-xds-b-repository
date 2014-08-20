@@ -343,7 +343,6 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	 * @return a new provider object
 	 */
 	private Provider createProvider(String[] xcnComponents) {
-		ProviderService ps = Context.getProviderService();
 		Provider pro;
 		// create a provider
 		pro = new Provider();
@@ -392,7 +391,6 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	private ClassificationType getClassificationFromExtrinsicObject(String classificationScheme, ExtrinsicObjectType eo) throws JAXBException {
 		List<ClassificationType> allClassifications = eo.getClassification();
 		
-		List<ClassificationType> classifications = new ArrayList<ClassificationType>();
 		for (ClassificationType c : allClassifications) {
 			if (c.getClassificationScheme().equals(classificationScheme)) {
 				return c;

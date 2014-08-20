@@ -6,10 +6,9 @@ import static org.mockito.Mockito.*;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
+import java.io.UnsupportedEncodingException;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -31,12 +30,14 @@ import org.openmrs.PatientIdentifierType;
 import org.openmrs.PersonAddress;
 import org.openmrs.Provider;
 import org.openmrs.api.EncounterService;
+import org.openmrs.api.PatientIdentifierException;
 import org.openmrs.api.PatientService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.shr.contenthandler.api.CodedValue;
 import org.openmrs.module.shr.contenthandler.api.Content;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
 import org.openmrs.module.shr.contenthandler.api.ContentHandlerService;
+import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.UnsupportedGenderException;
 import org.openmrs.test.BaseModuleContextSensitiveTest;
 
 public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensitiveTest {
@@ -46,6 +47,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 		executeDataSet("src/test/resources/provideAndRegRequest-dataset.xml");
 	}
 	
+	@SuppressWarnings("unchecked")
 	private ProvideAndRegisterDocumentSetRequestType parseRequestFromFile(File file) throws JAXBException, FileNotFoundException {
 		JAXBContext jaxbContext = JAXBContext.newInstance("org.dcm4chee.xds2.infoset.ihe:org.dcm4chee.xds2.infoset.rim");
 		Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
@@ -57,203 +59,181 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 	}
 
 	@Test
-	public void findOrCreatePatient_shouldCreateANewPatientIfNoPatientCanBeFound() {
+	public void findOrCreatePatient_shouldCreateANewPatientIfNoPatientCanBeFound() throws FileNotFoundException, JAXBException, PatientIdentifierException, ParseException, UnsupportedGenderException {
 		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
-		try {
-			File file = new File("src/test/resources/provideAndRegRequest2.xml");
-			ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
-			List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
-			ExtrinsicObjectType eo = extrinsicObjects.get(0);
+		File file = new File("src/test/resources/provideAndRegRequest2.xml");
+		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
+		List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+		ExtrinsicObjectType eo = extrinsicObjects.get(0);
+	
+		Patient pat = service.findOrCreatePatient(eo);
 		
-			Patient pat = service.findOrCreatePatient(eo);
-			
-			// check patient was created correctly
-			assertNotNull(pat);
-			assertEquals("M", pat.getGender());
-			
-			SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
-			String dob = sdf.format(pat.getBirthdate());
-			assertEquals("19560527", dob);
-			
-			assertEquals("John", pat.getGivenName());
-			assertEquals("Doe", pat.getFamilyName());
-			
-			PersonAddress pa = pat.getAddresses().iterator().next();
-			assertEquals("100 Main St", pa.getAddress1());
-			assertEquals("Metropolis", pa.getCityVillage());
-			assertEquals("Il", pa.getStateProvince());
-			assertEquals("44130", pa.getPostalCode());
-			assertEquals("USA", pa.getCountry());
-			
-			// check that the needed identifier type was created
-			PatientService ps = Context.getPatientService();
-			PatientIdentifierType patientIdentifierType = ps.getPatientIdentifierTypeByName("1.2.4");
-			assertNotNull(patientIdentifierType);
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		// check patient was created correctly
+		assertNotNull(pat);
+		assertEquals("M", pat.getGender());
+		
+		SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
+		String dob = sdf.format(pat.getBirthdate());
+		assertEquals("19560527", dob);
+		
+		assertEquals("John", pat.getGivenName());
+		assertEquals("Doe", pat.getFamilyName());
+		
+		PersonAddress pa = pat.getAddresses().iterator().next();
+		assertEquals("100 Main St", pa.getAddress1());
+		assertEquals("Metropolis", pa.getCityVillage());
+		assertEquals("Il", pa.getStateProvince());
+		assertEquals("44130", pa.getPostalCode());
+		assertEquals("USA", pa.getCountry());
+		
+		// check that the needed identifier type was created
+		PatientService ps = Context.getPatientService();
+		PatientIdentifierType patientIdentifierType = ps.getPatientIdentifierTypeByName("1.2.4");
+		assertNotNull(patientIdentifierType);
 	}
 	
 	@Test
-	public void findOrCreatePatient_shouldFindAnExistingPatient() {
+	public void findOrCreatePatient_shouldFindAnExistingPatient() throws PatientIdentifierException, JAXBException, ParseException, UnsupportedGenderException, FileNotFoundException {
+		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
+		File file = new File("src/test/resources/provideAndRegRequest1.xml");
+		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
+		List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+		ExtrinsicObjectType eo = extrinsicObjects.get(0);
+		
+		Patient pat = service.findOrCreatePatient(eo);
+		
+		assertNotNull(pat);
+		assertEquals("F", pat.getGender());
+		
+		assertEquals("Jane", pat.getGivenName());
+		assertEquals("Doe", pat.getFamilyName());
+		// This is a name that only OpenMRS knows about
+		assertEquals("Sarah", pat.getMiddleName());
+	}
+	
+	@Test
+	public void findOrCreatePatient_shouldThrowUnsupportedGenderException() throws FileNotFoundException, JAXBException, PatientIdentifierException, ParseException {
 		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
 		try {
-			File file = new File("src/test/resources/provideAndRegRequest1.xml");
+			File file = new File("src/test/resources/provideAndRegRequest-unsupported-gender.xml");
 			ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
 			List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
 			ExtrinsicObjectType eo = extrinsicObjects.get(0);
 			
-			Patient pat = service.findOrCreatePatient(eo);
+			service.findOrCreatePatient(eo);
 			
-			assertNotNull(pat);
-			assertEquals("F", pat.getGender());
-			
-			assertEquals("Jane", pat.getGivenName());
-			assertEquals("Doe", pat.getFamilyName());
-			// This is a name that only OpenMRS knows about
-			assertEquals("Sarah", pat.getMiddleName());
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+			fail("Should have thrown exception");
+		} catch (UnsupportedGenderException e) {
+			// expected
 		}
 	}
 	
 	@Test
-	public void findOrCreateProvider_shouldCreateNewProvidersAndEncounterRolesIfNoneCanBeFound() {
+	public void findOrCreateProvider_shouldCreateNewProvidersAndEncounterRolesIfNoneCanBeFound() throws JAXBException, FileNotFoundException {
 		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
-		try {
-			File file = new File("src/test/resources/provideAndRegRequest1.xml");
-			ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
-			List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
-			ExtrinsicObjectType eo = extrinsicObjects.get(0);
-			
-			Map<EncounterRole, Set<Provider>> providersByRole = service.findOrCreateProvidersByRole(eo);
-			
-			for (EncounterRole role : providersByRole.keySet()) {
-				Set<Provider> providers = providersByRole.get(role);
-				if (role.getName().equals("Attending")) {
-					assertEquals(1, providers.size());
-					Provider provider = providers.iterator().next();
-					assertEquals("Gerald Smitty", provider.getName());
-				} else if (role.getName().equals("Primary Surgeon")) {
-					assertEquals(2, providers.size());
-					boolean sherryFound = false;
-					boolean terryFound = false;
-					for (Provider provider : providers) {
-						if (provider.getName().equals("Sherry Dopplemeyer")) {
-							sherryFound = true;
-						}
-						if (provider.getName().equals("Terry Doppleganger")) {
-							terryFound = true;
-						}
+		File file = new File("src/test/resources/provideAndRegRequest1.xml");
+		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
+		List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+		ExtrinsicObjectType eo = extrinsicObjects.get(0);
+		
+		Map<EncounterRole, Set<Provider>> providersByRole = service.findOrCreateProvidersByRole(eo);
+		
+		for (EncounterRole role : providersByRole.keySet()) {
+			Set<Provider> providers = providersByRole.get(role);
+			if (role.getName().equals("Attending")) {
+				assertEquals(1, providers.size());
+				Provider provider = providers.iterator().next();
+				assertEquals("Gerald Smitty", provider.getName());
+			} else if (role.getName().equals("Primary Surgeon")) {
+				assertEquals(2, providers.size());
+				boolean sherryFound = false;
+				boolean terryFound = false;
+				for (Provider provider : providers) {
+					if (provider.getName().equals("Sherry Dopplemeyer")) {
+						sherryFound = true;
 					}
-					if (!sherryFound && terryFound) {
-						fail("Sherry or Terry was not found is the resulting set.");
+					if (provider.getName().equals("Terry Doppleganger")) {
+						terryFound = true;
 					}
-				} else {
-					fail("An unexpected role was found.");
 				}
-			}
-			
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
-	}
-	
-	@Test
-	public void findOrCreateProvider_shouldFindAnExistingProviderAndEncounterRole() {
-		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
-		try {
-			File file = new File("src/test/resources/provideAndRegRequest2.xml");
-			ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
-			List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
-			ExtrinsicObjectType eo = extrinsicObjects.get(0);
-			
-			Map<EncounterRole, Set<Provider>> providersByRole = service.findOrCreateProvidersByRole(eo);
-			
-			boolean jackFound = false;
-			for (EncounterRole role : providersByRole.keySet()) {
-				Set<Provider> providers = providersByRole.get(role);
-				if (role.getName().equals("Nurse")) {
-					assertEquals(1, providers.size());
-					Provider provider = providers.iterator().next();
-					assertEquals("Jack Provider - omrs", provider.getName());
-					jackFound = true;
-					
-					// test that the encounter role is the one defined in the dataset not a newly created one
-					assertEquals(new Integer(2), role.getId());
+				if (!sherryFound && terryFound) {
+					fail("Sherry or Terry was not found is the resulting set.");
 				}
+			} else {
+				fail("An unexpected role was found.");
 			}
-			
-			if (!jackFound) {
-				fail("Provider 'Jack Provider' was not found in the resuting map.");
+		}
+	}
+	
+	@Test
+	public void findOrCreateProvider_shouldFindAnExistingProviderAndEncounterRole() throws JAXBException, FileNotFoundException {
+		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
+		File file = new File("src/test/resources/provideAndRegRequest2.xml");
+		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
+		List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+		ExtrinsicObjectType eo = extrinsicObjects.get(0);
+		
+		Map<EncounterRole, Set<Provider>> providersByRole = service.findOrCreateProvidersByRole(eo);
+		
+		boolean jackFound = false;
+		for (EncounterRole role : providersByRole.keySet()) {
+			Set<Provider> providers = providersByRole.get(role);
+			if (role.getName().equals("Nurse")) {
+				assertEquals(1, providers.size());
+				Provider provider = providers.iterator().next();
+				assertEquals("Jack Provider - omrs", provider.getName());
+				jackFound = true;
+				
+				// test that the encounter role is the one defined in the dataset not a newly created one
+				assertEquals(new Integer(2), role.getId());
 			}
-			
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
+		}
+		
+		if (!jackFound) {
+			fail("Provider 'Jack Provider' was not found in the resuting map.");
 		}
 	}
 	
 	@Test
-	public void findOrCreateEncounterType_shouldFindAnExistingEncounterType() {
+	public void findOrCreateEncounterType_shouldFindAnExistingEncounterType() throws JAXBException, FileNotFoundException {
 		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
-		try {
-			File file = new File("src/test/resources/provideAndRegRequest1.xml");
-			ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
-			List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
-			ExtrinsicObjectType eo = extrinsicObjects.get(0);
-			
-			EncounterType encounterType = service.findOrCreateEncounterType(eo);
-			
-			assertEquals(new Integer(1), encounterType.getId());
-			
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		File file = new File("src/test/resources/provideAndRegRequest1.xml");
+		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
+		List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+		ExtrinsicObjectType eo = extrinsicObjects.get(0);
+		
+		EncounterType encounterType = service.findOrCreateEncounterType(eo);
+		
+		assertEquals(new Integer(1), encounterType.getId());
 	}
 	
 	@Test
-	public void findOrCreateEncounterType_shouldCreateANewEncounterType() {
+	public void findOrCreateEncounterType_shouldCreateANewEncounterType() throws JAXBException, FileNotFoundException {
 		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
-		try {
-			File file = new File("src/test/resources/provideAndRegRequest2.xml");
-			ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
-			List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
-			ExtrinsicObjectType eo = extrinsicObjects.get(0);
-			
-			EncounterType encounterType = service.findOrCreateEncounterType(eo);
-			
-			assertEquals("History and Physical - non existing", encounterType.getName());
-			
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		File file = new File("src/test/resources/provideAndRegRequest2.xml");
+		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
+		List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+		ExtrinsicObjectType eo = extrinsicObjects.get(0);
+		
+		EncounterType encounterType = service.findOrCreateEncounterType(eo);
+		
+		assertEquals("History and Physical - non existing", encounterType.getName());
 	}
 	
 	@Test
-	public void storeDocument_shouldReturnTheDocumentUniqueId() {
+	public void storeDocument_shouldReturnTheDocumentUniqueId() throws FileNotFoundException, JAXBException, PatientIdentifierException, UnsupportedEncodingException, ParseException, UnsupportedGenderException {
 		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
-		try {
-			File file = new File("src/test/resources/provideAndRegRequest1.xml");
-			ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
-			List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
-			ExtrinsicObjectType eo = extrinsicObjects.get(0);
-			
-			String uniqueId = service.storeDocument(eo, request);
-			
-			assertEquals("2009.9.1.2455", uniqueId);
-			
-		} catch (Exception e) {
-			e.printStackTrace();
-			fail(e.getMessage());
-		}
+		File file = new File("src/test/resources/provideAndRegRequest1.xml");
+		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
+		List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+		ExtrinsicObjectType eo = extrinsicObjects.get(0);
+		
+		String uniqueId = service.storeDocument(eo, request);
+		
+		assertEquals("2009.9.1.2455", uniqueId);
 	}
 	
+	@SuppressWarnings("unchecked")
 	@Test
 	public void storeDocument_shouldCallARegisteredContenthandler() throws Exception {
 		PatientService ps = Context.getPatientService();
