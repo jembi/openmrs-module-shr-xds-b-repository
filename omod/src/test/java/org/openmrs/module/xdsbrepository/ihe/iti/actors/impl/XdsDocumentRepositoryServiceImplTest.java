@@ -1,13 +1,15 @@
 package org.openmrs.module.xdsbrepository.ihe.iti.actors.impl;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.text.SimpleDateFormat;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -28,8 +30,13 @@ import org.openmrs.Patient;
 import org.openmrs.PatientIdentifierType;
 import org.openmrs.PersonAddress;
 import org.openmrs.Provider;
+import org.openmrs.api.EncounterService;
 import org.openmrs.api.PatientService;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.shr.contenthandler.api.CodedValue;
+import org.openmrs.module.shr.contenthandler.api.Content;
+import org.openmrs.module.shr.contenthandler.api.ContentHandler;
+import org.openmrs.module.shr.contenthandler.api.ContentHandlerService;
 import org.openmrs.test.BaseModuleContextSensitiveTest;
 
 public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensitiveTest {
@@ -229,7 +236,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 	}
 	
 	@Test
-	public void storeDocument_shouldCallSaveContentOnTheContentHandler() {
+	public void storeDocument_shouldReturnTheDocumentUniqueId() {
 		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
 		try {
 			File file = new File("src/test/resources/provideAndRegRequest1.xml");
@@ -245,6 +252,35 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 			e.printStackTrace();
 			fail(e.getMessage());
 		}
+	}
+	
+	@Test
+	public void storeDocument_shouldCallARegisteredContenthandler() throws Exception {
+		PatientService ps = Context.getPatientService();
+		EncounterService es = Context.getEncounterService();
+		
+		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
+		
+		ContentHandlerService chs = Context.getService(org.openmrs.module.shr.contenthandler.api.ContentHandlerService.class);
+		
+		CodedValue typeCode = new CodedValue("testType", "testCodes", "Test Type");
+		CodedValue formatCode = new CodedValue("testFormat", "testCodes", "Test Format");
+		
+		Content expectedContent = new Content("My test document", typeCode, formatCode, "text/plain");
+		
+		ContentHandler mockHandler = mock(ContentHandler.class);
+		when(mockHandler.cloneHandler()).thenReturn(mockHandler);
+		chs.registerContentHandler(typeCode, formatCode, mockHandler);
+		
+		File file = new File("src/test/resources/provideAndRegRequest1.xml");
+		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
+		List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+		ExtrinsicObjectType eo = extrinsicObjects.get(0);
+		
+		String uniqueId = service.storeDocument(eo, request);
+		
+		assertEquals("2009.9.1.2455", uniqueId);
+		verify(mockHandler).saveContent(eq(ps.getPatient(2)), (Map<EncounterRole, Set<Provider>>) any(), eq(es.getEncounterType(1)), eq(expectedContent));
 	}
 	
 }

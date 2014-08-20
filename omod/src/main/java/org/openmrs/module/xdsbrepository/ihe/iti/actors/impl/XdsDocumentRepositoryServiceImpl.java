@@ -67,6 +67,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	public static final String SLOT_NAME_AUTHOR_INSTITUTION = "authorInstitution";
 	public static final String SLOT_NAME_AUTHOR_SPECIALITY = "authorSpecialty";
 	public static final String SLOT_NAME_AUTHOR_TELECOM = "authorTelecommunication";
+	public static final String SLOT_NAME_CODING_SCHEME = "codingScheme";
 	
 	// Get the clinical statement service
 	protected final Log log = LogFactory.getLog(this.getClass());
@@ -148,40 +149,35 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	 */
 	protected String storeDocument(ExtrinsicObjectType eot, ProvideAndRegisterDocumentSetRequestType request) throws Exception {
 		String docId = eot.getId();
-		
-		List<Document> docList = request.getDocument();
-		Document document = null;
-		for (Document d : docList) {
-			if (d.getId().equals(docId)) {
-				document = d;
-				break;
-			}
-		}
+		Map<String, Document> docs = InfosetUtil.getDocuments(request);
+		Document document = docs.get(docId);
 		
 		CodedValue typeCode = null;
 		CodedValue formatCode = null;
-		String contentType = null;
+		String contentType = eot.getMimeType();
 		List<ClassificationType> classificationList = eot.getClassification();
 		for (ClassificationType ct : classificationList) {
 			if (ct.getClassificationScheme().equals(XDSConstants.UUID_XDSDocumentEntry_typeCode)) {
-				typeCode = new CodedValue(ct.getNodeRepresentation(), ct.getClassificationScheme());
+				String codingScheme = InfosetUtil.getSlotValue(ct.getSlot(), SLOT_NAME_CODING_SCHEME, null);
+				typeCode = new CodedValue(ct.getNodeRepresentation(), codingScheme);
 			}
 			if (ct.getClassificationScheme().equals(XDSConstants.UUID_XDSDocumentEntry_formatCode)) {
-				formatCode = new CodedValue(ct.getNodeRepresentation(), ct.getClassificationScheme());
+				String codingScheme = InfosetUtil.getSlotValue(ct.getSlot(), SLOT_NAME_CODING_SCHEME, null);
+				formatCode = new CodedValue(ct.getNodeRepresentation(), codingScheme);
 			}
 		}
 		
-		Content content = new Content(document.getValue().toString(), typeCode, formatCode, contentType);
+		Content content = new Content(new String(document.getValue(), "UTF-8"), typeCode, formatCode, contentType);
 		
 		ContentHandlerService chs = Context.getService(ContentHandlerService.class);
-		ContentHandler defaultHandler = chs.getDefaultHandler(typeCode, formatCode);
+		ContentHandler defaultHandler = chs.getDefaultUnstructuredHandler(typeCode, formatCode);
 		ContentHandler discreteHandler = chs.getContentHandler(typeCode, formatCode);
 		
 		Patient patient = findOrCreatePatient(eot);
 		Map<EncounterRole, Set<Provider>> providersByRole = findOrCreateProvidersByRole(eot);
 		EncounterType encounterType = findOrCreateEncounterType(eot);
 		
-		// always send to the default handler
+		// always send to the default unstructured data handler
 		defaultHandler.saveContent(patient, providersByRole, encounterType, content);
 		// If another handler exists send to that as well
 		if (discreteHandler != null) {

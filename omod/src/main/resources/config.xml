@@ -30,6 +30,11 @@
 		<servlet-class>org.openmrs.module.xdsbrepository.spring.servlet.ModuleMessageDispatcherServlet</servlet-class>
 	</servlet>
 	
+	<!-- Required modules -->
+	<require_modules>
+		<require_module version="1.2.0">org.openmrs.module.shr-contenthandler</require_module>
+	</require_modules>
+	
 	<!-- Maps hibernate file's, if present -->
 	<mappingFiles>
 				

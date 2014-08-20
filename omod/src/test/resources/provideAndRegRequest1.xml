@@ -153,16 +153,16 @@
                 </rim:Classification>
                 <rim:Classification
                     classificationScheme="urn:uuid:a09d5840-386c-46f2-b5ad-9c3699a4309d"
-                    classifiedObject="Document01" nodeRepresentation="CDAR2/IHE 1.0"
+                    classifiedObject="Document01" nodeRepresentation="testFormat"
                     objectType="urn:oasis:names:tc:ebxml-regrep:ObjectType:RegistryObject:Classification"
                     id="id_5">
                     <rim:Slot name="codingScheme">
                         <rim:ValueList>
-                            <rim:Value>Connect-a-thon formatCodes</rim:Value>
+                            <rim:Value>testCodes</rim:Value>
                         </rim:ValueList>
                     </rim:Slot>
                     <rim:Name>
-                        <rim:LocalizedString value="CDAR2/IHE 1.0"/>
+                        <rim:LocalizedString value="Test Format"/>
                     </rim:Name>
                 </rim:Classification>
                 <rim:Classification
@@ -196,16 +196,16 @@
                 </rim:Classification>
                 <rim:Classification
                     classificationScheme="urn:uuid:f0306f51-975f-434e-a61c-c59651d33983"
-                    classifiedObject="Document01" nodeRepresentation="34108-1"
+                    classifiedObject="Document01" nodeRepresentation="testType"
                     objectType="urn:oasis:names:tc:ebxml-regrep:ObjectType:RegistryObject:Classification"
                     id="id_8">
                     <rim:Slot name="codingScheme">
                         <rim:ValueList>
-                            <rim:Value>LOINC</rim:Value>
+                            <rim:Value>testCodes</rim:Value>
                         </rim:ValueList>
                     </rim:Slot>
                     <rim:Name>
-                        <rim:LocalizedString value="Outpatient Evaluation And Management"/>
+                        <rim:LocalizedString value="Test Type"/>
                     </rim:Name>
                 </rim:Classification>
                 <rim:ExternalIdentifier
@@ -326,8 +326,5 @@
             </rim:Association>
         </rim:RegistryObjectList>
     </lcm:SubmitObjectsRequest>
-    <xdsb:Document id="Document01">
-        <xop:Include href="cid:1.urn:uuid:566EAD10FEBB55C5A61257193478499@apache.org"
-            xmlns:xop="http://www.w3.org/2004/08/xop/include"/>
-    </xdsb:Document>
+    <xdsb:Document id="Document01">TXkgdGVzdCBkb2N1bWVudA==</xdsb:Document>
 </xdsb:ProvideAndRegisterDocumentSetRequest>
