@@ -47,7 +47,7 @@
 	</bean>
 
 	<bean id="marshaller" class="org.springframework.oxm.jaxb.Jaxb2Marshaller">
-		<property name="contextPath" value="org.openmrs.module.xdsbrepository.ihe.iti.actors.transport.xds"/>
+		<property name="contextPath" value="org.dcm4chee.xds2.infoset.ihe:org.dcm4chee.xds2.infoset.rim"/>
 		<!-- This is the important part! -->
 		<property name="mtomEnabled" value="true" />
 	</bean>

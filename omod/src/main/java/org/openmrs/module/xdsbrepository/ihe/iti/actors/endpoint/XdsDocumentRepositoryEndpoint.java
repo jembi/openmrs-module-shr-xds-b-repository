@@ -1,23 +1,16 @@
 package org.openmrs.module.xdsbrepository.ihe.iti.actors.endpoint;
 
-
 import javax.xml.bind.JAXBElement;
 import javax.xml.namespace.QName;
 
+import org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType;
+import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.XdsDocumentRepositoryService;
-import org.openmrs.module.xdsbrepository.ihe.iti.actors.transport.xds.ProvideAndRegisterDocumentSetRequestType;
-import org.openmrs.module.xdsbrepository.ihe.iti.actors.transport.xds.RegistryErrorList;
-import org.openmrs.module.xdsbrepository.ihe.iti.actors.transport.xds.RegistryResponseType;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.ws.context.MessageContext;
 import org.springframework.ws.server.endpoint.annotation.Endpoint;
-import org.springframework.ws.server.endpoint.annotation.PayloadRoot;
 import org.springframework.ws.server.endpoint.annotation.RequestPayload;
 import org.springframework.ws.server.endpoint.annotation.ResponsePayload;
-import org.springframework.ws.soap.SoapMessage;
-import org.springframework.ws.soap.SoapMessageFactory;
 import org.springframework.ws.soap.addressing.server.annotation.Action;
-import org.springframework.ws.soap.saaj.SaajSoapMessageFactory;
 import org.springframework.ws.soap.server.endpoint.annotation.SoapAction;
 
 /**
