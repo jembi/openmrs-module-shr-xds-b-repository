@@ -308,6 +308,10 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 		RegistryResponseType res = service.sendMetadataToRegistry(new URL("http://localhost:8089/ws/xdsregistry"), request.getSubmitObjectsRequest());
 		
 		assertEquals("urn:oasis:names:tc:ebxml-regrep:ResponseStatusType:Success", res.getStatus());
+		com.github.tomakehurst.wiremock.client.WireMock.verify(postRequestedFor(urlEqualTo("/ws/xdsregistry"))
+		        .withHeader("Content-Type", containing("application/soap+xml"))
+		        .withRequestBody(containing("SubmitObjectsRequest"))
+				.withRequestBody(containing("1111111111^^^&amp;1.2.3&amp;ISO")));
 	}
 	
 	@Test
