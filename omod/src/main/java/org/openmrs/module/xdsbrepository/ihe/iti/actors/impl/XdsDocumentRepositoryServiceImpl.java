@@ -30,7 +30,9 @@ import org.dcm4chee.xds2.infoset.rim.RegistryErrorList;
 import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
 import org.dcm4chee.xds2.infoset.rim.SlotType1;
 import org.dcm4chee.xds2.infoset.rim.SubmitObjectsRequest;
+import org.dcm4chee.xds2.infoset.util.DocumentRegistryPortTypeFactory;
 import org.dcm4chee.xds2.infoset.util.InfosetUtil;
+import org.dcm4chee.xds2.infoset.ws.registry.DocumentRegistryPortType;
 import org.openmrs.EncounterRole;
 import org.openmrs.EncounterType;
 import org.openmrs.Patient;
@@ -50,6 +52,7 @@ import org.openmrs.module.shr.contenthandler.api.Content;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
 import org.openmrs.module.shr.contenthandler.api.ContentHandlerService;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.XdsDocumentRepositoryService;
+import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.RegistryNotAvailableException;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.UnsupportedGenderException;
 import org.openmrs.util.OpenmrsConstants;
 import org.springframework.stereotype.Service;
@@ -140,12 +143,18 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 
 	/**
 	 * Register documents on registry 
+	 * @throws Exception 
 	 */
-	protected RegistryResponseType sendMetadataToRegistry(URL registryUrl, SubmitObjectsRequest submitObjectRequest) {
-		// TODO: This is a stub
-		RegistryResponseType response = new RegistryResponseType();
-		response.setStatus(XDSConstants.XDS_B_STATUS_SUCCESS);
-		return response;
+	protected RegistryResponseType sendMetadataToRegistry(URL registryUrl, SubmitObjectsRequest submitObjectRequest) throws Exception {
+        DocumentRegistryPortType port = DocumentRegistryPortTypeFactory.getDocumentRegistryPortSoap12(registryUrl.toString());
+        log.info("XDS.b: Send register document-b request to registry:" + registryUrl);
+        RegistryResponseType rsp = null;
+        try {
+            rsp = port.documentRegistryRegisterDocumentSetB(submitObjectRequest);
+        } catch (Exception e) {
+            throw new RegistryNotAvailableException("Document Registry not available: " + registryUrl, e);
+        }
+        return rsp;
     }
 
 	/**
