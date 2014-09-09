@@ -1,4 +1,4 @@
-package org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions;
+package org.openmrs.module.xdsbrepository.exceptions;
 
 public class RegistryNotAvailableException extends Exception {
 	

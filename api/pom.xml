@@ -22,9 +22,30 @@
 			<artifactId>library-name</artifactId>
 		</dependency> 
 		-->
+		
+		<!-- Content Handler  -->
+		<dependency>
+			<groupId>org.openmrs.module</groupId>
+			<artifactId>shr-contenthandler-api</artifactId>
+			<version>2.0.0</version>
+			<type>jar</type>
+  			<scope>provided</scope>
+		</dependency>
+		
+		<!-- DCM4CHEE modules (for JAX-b classes and InfoSetUtil) -->
+		<dependency>
+			<groupId>org.dcm4che</groupId>
+			<artifactId>dcm4chee-xds2-infoset</artifactId>
+			<version>2.0.4-SNAPSHOT</version>
+		</dependency>
 
-		
-		
+		<!-- Wiremock (devDependency) -->		
+		<dependency>
+			<groupId>com.github.tomakehurst</groupId>
+			<artifactId>wiremock</artifactId>
+			<version>1.47</version>
+			<scope>test</scope>
+		</dependency>
 
 		<!-- Begin OpenMRS core -->
 		

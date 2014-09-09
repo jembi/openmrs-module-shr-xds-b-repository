@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+ 
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog/1.9"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog/1.9
+                  http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-1.9.xsd">
+ 
+    <!--
+        See http://www.liquibase.org/manual/home#available_database_refactorings
+        for a list of supported elements and attributes
+    -->
+ 
+    <changeSet id="xdsbrepository-2014-09-03-15:14" author="rcrichton">
+        <createTable tableName="xdsbrepository_dochandlers">
+            <column name="id" type="int">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="doc_id" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="handler_class" type="varchar(256)">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+        
+	    <createIndex indexName="idx_doc_id"
+	            tableName="xdsbrepository_dochandlers"
+	            unique="true">
+	        <column name="doc_id" type="varchar(255)"/>
+	    </createIndex>
+    </changeSet>
+ 
+</databaseChangeLog>

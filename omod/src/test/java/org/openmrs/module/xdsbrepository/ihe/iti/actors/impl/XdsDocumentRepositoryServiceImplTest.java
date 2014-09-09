@@ -8,15 +8,11 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
 
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
-import java.io.StringWriter;
 import java.io.UnsupportedEncodingException;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.List;
@@ -26,16 +22,12 @@ import java.util.Set;
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
-import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
 
 import org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType;
 import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
-import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
-import org.dcm4chee.xds2.infoset.rim.SubmitObjectsRequest;
 import org.dcm4chee.xds2.infoset.util.InfosetUtil;
 import org.junit.Before;
-import org.junit.Rule;
 import org.junit.Test;
 import org.openmrs.EncounterRole;
 import org.openmrs.EncounterType;
@@ -51,16 +43,10 @@ import org.openmrs.module.shr.contenthandler.api.CodedValue;
 import org.openmrs.module.shr.contenthandler.api.Content;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
 import org.openmrs.module.shr.contenthandler.api.ContentHandlerService;
-import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.RegistryNotAvailableException;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.UnsupportedGenderException;
 import org.openmrs.test.BaseModuleContextSensitiveTest;
 
-import com.github.tomakehurst.wiremock.junit.WireMockRule;
-
 public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensitiveTest {
-	
-	@Rule
-	public WireMockRule wireMockRule = new WireMockRule(8089);
 	
 	@Before
 	public void setup() throws Exception {
@@ -266,7 +252,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 		CodedValue typeCode = new CodedValue("testType", "testCodes", "Test Type");
 		CodedValue formatCode = new CodedValue("testFormat", "testCodes", "Test Format");
 		
-		Content expectedContent = new Content("My test document", typeCode, formatCode, "text/plain");
+		Content expectedContent = new Content("testId", "My test document", typeCode, formatCode, "text/plain");
 		
 		ContentHandler mockHandler = mock(ContentHandler.class);
 		when(mockHandler.cloneHandler()).thenReturn(mockHandler);
@@ -281,51 +267,6 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 		
 		assertEquals("2009.9.1.2455", uniqueId);
 		verify(mockHandler).saveContent(eq(ps.getPatient(2)), (Map<EncounterRole, Set<Provider>>) any(), eq(es.getEncounterType(1)), eq(expectedContent));
-	}
-	
-	private static final String registryResponse = "<s:Envelope xmlns:s='http://www.w3.org/2003/05/soap-envelope' xmlns:a='http://www.w3.org/2005/08/addressing'>"
-			+ "  <s:Header>"
-			+ "		<a:Action s:mustUnderstand='1'>urn:ihe:iti:2007:RegisterDocumentSet-bResponse</a:Action>"
-			+ "		<a:RelatesTo>urn:uuid:1ec52e14-4aad-4ba1-b7d3-fc9812a21340</a:RelatesTo>"
-			+ "	</s:Header>"
-			+ "  <s:Body>"
-			+ "		<rs:RegistryResponse xsi:schemaLocation='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0 ../../schema/ebRS/rs.xsd' status='urn:oasis:names:tc:ebxml-regrep:ResponseStatusType:Success' xmlns:rs='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'/>"
-			+ "	</s:Body>"
-			+ "</s:Envelope>";
-	
-	@Test
-	public void sendMetadataToRegistry_shouldSendRequestToRegistry() throws MalformedURLException, Exception {
-		stubFor(post(urlEqualTo("/ws/xdsregistry"))
-				.willReturn(aResponse()
-	                .withStatus(200)
-	                .withHeader("Content-Type", "application/soap+xml")
-	                .withBody(registryResponse)));
-		
-		File file = new File("src/test/resources/provideAndRegRequest1.xml");
-		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
-		
-		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
-		RegistryResponseType res = service.sendMetadataToRegistry(new URL("http://localhost:8089/ws/xdsregistry"), request.getSubmitObjectsRequest());
-		
-		assertEquals("urn:oasis:names:tc:ebxml-regrep:ResponseStatusType:Success", res.getStatus());
-		com.github.tomakehurst.wiremock.client.WireMock.verify(postRequestedFor(urlEqualTo("/ws/xdsregistry"))
-		        .withHeader("Content-Type", containing("application/soap+xml"))
-		        .withRequestBody(containing("SubmitObjectsRequest"))
-				.withRequestBody(containing("1111111111^^^&amp;1.2.3&amp;ISO")));
-	}
-	
-	@Test
-	public void sendMetadataToRegistry_shouldThrowAnExceptionIfTheRegistryIsUnreachable() throws MalformedURLException, Exception {
-		File file = new File("src/test/resources/provideAndRegRequest1.xml");
-		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
-		
-		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
-		try {
-			service.sendMetadataToRegistry(new URL("http://localhost:9999/ws/xdsregistry"), request.getSubmitObjectsRequest());
-			fail("Expected an exception");
-		} catch (RegistryNotAvailableException e) {
-			// expected
-		}
 	}
 	
 }
