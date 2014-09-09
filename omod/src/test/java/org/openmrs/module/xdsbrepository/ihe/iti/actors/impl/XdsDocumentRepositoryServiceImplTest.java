@@ -1,40 +1,11 @@
 package org.openmrs.module.xdsbrepository.ihe.iti.actors.impl;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
-
-import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.FileReader;
-import java.io.UnsupportedEncodingException;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBElement;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Unmarshaller;
-
 import org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType;
 import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
 import org.dcm4chee.xds2.infoset.util.InfosetUtil;
 import org.junit.Before;
 import org.junit.Test;
-import org.openmrs.EncounterRole;
-import org.openmrs.EncounterType;
-import org.openmrs.Patient;
-import org.openmrs.PatientIdentifierType;
-import org.openmrs.PersonAddress;
-import org.openmrs.Provider;
+import org.openmrs.*;
 import org.openmrs.api.EncounterService;
 import org.openmrs.api.PatientIdentifierException;
 import org.openmrs.api.PatientService;
@@ -46,29 +17,47 @@ import org.openmrs.module.shr.contenthandler.api.ContentHandlerService;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.UnsupportedGenderException;
 import org.openmrs.test.BaseModuleContextSensitiveTest;
 
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBElement;
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.Unmarshaller;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import static org.junit.Assert.*;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.*;
+
 public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensitiveTest {
 	
 	@Before
 	public void setup() throws Exception {
 		executeDataSet("src/test/resources/provideAndRegRequest-dataset.xml");
 	}
-	
-	@SuppressWarnings("unchecked")
-	private ProvideAndRegisterDocumentSetRequestType parseRequestFromFile(File file) throws JAXBException, FileNotFoundException {
-		JAXBContext jaxbContext = JAXBContext.newInstance("org.dcm4chee.xds2.infoset.ihe:org.dcm4chee.xds2.infoset.rim");
-		Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
 
-		FileReader reader = new FileReader(file);
-		JAXBElement<ProvideAndRegisterDocumentSetRequestType> request = (JAXBElement<ProvideAndRegisterDocumentSetRequestType>) unmarshaller.unmarshal(reader);
-		
-		return request.getValue();
-	}
+    @SuppressWarnings("unchecked")
+    private ProvideAndRegisterDocumentSetRequestType parseRequestFromResourceName(String resourceName) throws JAXBException, FileNotFoundException {
+        JAXBContext jaxbContext = JAXBContext.newInstance("org.dcm4chee.xds2.infoset.ihe:org.dcm4chee.xds2.infoset.rim");
+        Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
+
+        InputStream is = this.getClass().getClassLoader().getResourceAsStream(resourceName);
+        JAXBElement<ProvideAndRegisterDocumentSetRequestType> request = (JAXBElement<ProvideAndRegisterDocumentSetRequestType>) unmarshaller.unmarshal(is);
+
+        return request.getValue();
+    }
 
 	@Test
 	public void findOrCreatePatient_shouldCreateANewPatientIfNoPatientCanBeFound() throws FileNotFoundException, JAXBException, PatientIdentifierException, ParseException, UnsupportedGenderException {
 		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
-		File file = new File("src/test/resources/provideAndRegRequest2.xml");
-		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
+		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest2.xml");
 		List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
 		ExtrinsicObjectType eo = extrinsicObjects.get(0);
 	
@@ -101,8 +90,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 	@Test
 	public void findOrCreatePatient_shouldFindAnExistingPatient() throws PatientIdentifierException, JAXBException, ParseException, UnsupportedGenderException, FileNotFoundException {
 		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
-		File file = new File("src/test/resources/provideAndRegRequest1.xml");
-		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
+		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest1.xml");
 		List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
 		ExtrinsicObjectType eo = extrinsicObjects.get(0);
 		
@@ -121,8 +109,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 	public void findOrCreatePatient_shouldThrowUnsupportedGenderException() throws FileNotFoundException, JAXBException, PatientIdentifierException, ParseException {
 		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
 		try {
-			File file = new File("src/test/resources/provideAndRegRequest-unsupported-gender.xml");
-			ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
+			ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest-unsupported-gender.xml");
 			List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
 			ExtrinsicObjectType eo = extrinsicObjects.get(0);
 			
@@ -137,8 +124,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 	@Test
 	public void findOrCreateProvider_shouldCreateNewProvidersAndEncounterRolesIfNoneCanBeFound() throws JAXBException, FileNotFoundException {
 		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
-		File file = new File("src/test/resources/provideAndRegRequest1.xml");
-		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
+		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest1.xml");
 		List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
 		ExtrinsicObjectType eo = extrinsicObjects.get(0);
 		
@@ -174,8 +160,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 	@Test
 	public void findOrCreateProvider_shouldFindAnExistingProviderAndEncounterRole() throws JAXBException, FileNotFoundException {
 		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
-		File file = new File("src/test/resources/provideAndRegRequest2.xml");
-		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
+		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest2.xml");
 		List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
 		ExtrinsicObjectType eo = extrinsicObjects.get(0);
 		
@@ -203,8 +188,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 	@Test
 	public void findOrCreateEncounterType_shouldFindAnExistingEncounterType() throws JAXBException, FileNotFoundException {
 		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
-		File file = new File("src/test/resources/provideAndRegRequest1.xml");
-		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
+		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest1.xml");
 		List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
 		ExtrinsicObjectType eo = extrinsicObjects.get(0);
 		
@@ -217,7 +201,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 	public void findOrCreateEncounterType_shouldCreateANewEncounterType() throws JAXBException, FileNotFoundException {
 		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
 		File file = new File("src/test/resources/provideAndRegRequest2.xml");
-		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
+		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest2.xml");
 		List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
 		ExtrinsicObjectType eo = extrinsicObjects.get(0);
 		
@@ -229,8 +213,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 	@Test
 	public void storeDocument_shouldReturnTheDocumentUniqueId() throws FileNotFoundException, JAXBException, PatientIdentifierException, UnsupportedEncodingException, ParseException, UnsupportedGenderException {
 		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
-		File file = new File("src/test/resources/provideAndRegRequest1.xml");
-		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
+		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest1.xml");
 		List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
 		ExtrinsicObjectType eo = extrinsicObjects.get(0);
 		
@@ -258,8 +241,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 		when(mockHandler.cloneHandler()).thenReturn(mockHandler);
 		chs.registerContentHandler(typeCode, formatCode, mockHandler);
 		
-		File file = new File("src/test/resources/provideAndRegRequest1.xml");
-		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromFile(file);
+		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest1.xml");
 		List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
 		ExtrinsicObjectType eo = extrinsicObjects.get(0);
 		
