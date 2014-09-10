@@ -12,13 +12,16 @@
  
     <changeSet id="xdsbrepository-2014-09-03-15:14" author="rcrichton">
         <createTable tableName="xdsbrepository_dochandlers">
-            <column name="id" type="int">
+            <column name="id" type="integer" autoIncrement="true">
                 <constraints primaryKey="true" nullable="false"/>
             </column>
             <column name="doc_id" type="varchar(50)">
                 <constraints nullable="false"/>
             </column>
-            <column name="handler_class" type="varchar(256)">
+            <column name="handler_class" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="uuid" type="varchar(38)">
                 <constraints nullable="false"/>
             </column>
         </createTable>

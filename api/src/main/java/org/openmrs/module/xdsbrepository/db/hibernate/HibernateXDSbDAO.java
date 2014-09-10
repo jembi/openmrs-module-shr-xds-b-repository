@@ -3,7 +3,7 @@ package org.openmrs.module.xdsbrepository.db.hibernate;
 import org.hibernate.Query;
 import org.hibernate.SessionFactory;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
-import org.openmrs.module.xdsbrepository.DocHandlerMapping;
+import org.openmrs.module.xdsbrepository.model.DocHandlerMapping;
 import org.openmrs.module.xdsbrepository.db.XDSbDAO;
 
 public class HibernateXDSbDAO implements XDSbDAO {
@@ -15,15 +15,18 @@ public class HibernateXDSbDAO implements XDSbDAO {
 			Class<? extends ContentHandler> contentHandler) {
 		DocHandlerMapping docMap = new DocHandlerMapping();
 		docMap.setDocId(docId);
-		docMap.setHandlerClass(contentHandler.getClass().getName());
+		docMap.setHandlerClass(contentHandler.getName());
 		sessionFactory.getCurrentSession().save(docMap);
 	}
 
 	@Override
 	public Class<? extends ContentHandler> getDocumentHandlerClass(
 			String documentUniqueId) throws ClassNotFoundException {
-		Query query = sessionFactory.getCurrentSession().createQuery("from xdsbrepository_dochandlers where xdsbrepository_dochandlers.doc_id = :documentUniqueId");
+		Query query = sessionFactory.getCurrentSession().createQuery("from DocHandlerMapping where doc_id = :documentUniqueId");
 		DocHandlerMapping docMap = (DocHandlerMapping) query.setString("documentUniqueId", documentUniqueId).uniqueResult();
+        if (docMap == null) {
+            return null;
+        }
 		return (Class<? extends ContentHandler>) this.getClass().getClassLoader().loadClass(docMap.getHandlerClass());
 	}
 

@@ -22,7 +22,7 @@
 	<bean parent="serviceContext">
 	    <property name="moduleService">
 	        <list>
-	            <value>@MODULE_PACKAGE@.XDSbService</value> <!-- service interface name -->
+	            <value>org.openmrs.module.xdsbrepository.XDSbService</value> <!-- service interface name -->
 	            <bean class="org.springframework.transaction.interceptor.TransactionProxyFactoryBean">
 	                <property name="transactionManager"><ref bean="transactionManager"/></property>
 	                <property name="target">
@@ -44,5 +44,5 @@
 	        </list>
 	    </property>
 	</bean>
-	
+
 </beans>

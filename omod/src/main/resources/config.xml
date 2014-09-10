@@ -36,9 +36,9 @@
 	</require_modules>
 	
 	<!-- Maps hibernate file's, if present -->
-	<mappingFiles>
-				
-	</mappingFiles>
+    <packagesWithMappedClasses>
+        org.openmrs.module.xdsbrepository.model
+    </packagesWithMappedClasses>
 
 	<!-- Internationalization -->
 	<!-- All message codes should start with ${project.parent.artifactId}. -->
