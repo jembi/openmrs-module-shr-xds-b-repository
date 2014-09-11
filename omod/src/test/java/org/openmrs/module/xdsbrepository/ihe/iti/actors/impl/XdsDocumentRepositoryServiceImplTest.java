@@ -1,19 +1,23 @@
 package org.openmrs.module.xdsbrepository.ihe.iti.actors.impl;
 
+import org.dcm4chee.xds2.common.exception.XDSException;
 import org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType;
+import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetRequestType;
+import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetResponseType;
 import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
+import org.dcm4chee.xds2.infoset.rim.RegistryError;
 import org.dcm4chee.xds2.infoset.util.InfosetUtil;
 import org.junit.Before;
 import org.junit.Test;
+import org.mockito.Mock;
 import org.openmrs.*;
+import org.openmrs.api.AdministrationService;
 import org.openmrs.api.EncounterService;
 import org.openmrs.api.PatientIdentifierException;
 import org.openmrs.api.PatientService;
 import org.openmrs.api.context.Context;
-import org.openmrs.module.shr.contenthandler.api.CodedValue;
-import org.openmrs.module.shr.contenthandler.api.Content;
-import org.openmrs.module.shr.contenthandler.api.ContentHandler;
-import org.openmrs.module.shr.contenthandler.api.ContentHandlerService;
+import org.openmrs.module.shr.contenthandler.api.*;
+import org.openmrs.module.xdsbrepository.XDSbService;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.UnsupportedGenderException;
 import org.openmrs.test.BaseModuleContextSensitiveTest;
 
@@ -21,7 +25,6 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
-import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
@@ -37,6 +40,9 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.*;
 
 public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensitiveTest {
+
+    @Mock
+    private AdministrationService as;
 	
 	@Before
 	public void setup() throws Exception {
@@ -44,12 +50,12 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 	}
 
     @SuppressWarnings("unchecked")
-    private ProvideAndRegisterDocumentSetRequestType parseRequestFromResourceName(String resourceName) throws JAXBException, FileNotFoundException {
+    private <T> T parseRequestFromResourceName(String resourceName) throws JAXBException, FileNotFoundException {
         JAXBContext jaxbContext = JAXBContext.newInstance("org.dcm4chee.xds2.infoset.ihe:org.dcm4chee.xds2.infoset.rim");
         Unmarshaller unmarshaller = jaxbContext.createUnmarshaller();
 
         InputStream is = this.getClass().getClassLoader().getResourceAsStream(resourceName);
-        JAXBElement<ProvideAndRegisterDocumentSetRequestType> request = (JAXBElement<ProvideAndRegisterDocumentSetRequestType>) unmarshaller.unmarshal(is);
+        JAXBElement<T> request = (JAXBElement<T>) unmarshaller.unmarshal(is);
 
         return request.getValue();
     }
@@ -200,7 +206,6 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 	@Test
 	public void findOrCreateEncounterType_shouldCreateANewEncounterType() throws JAXBException, FileNotFoundException {
 		XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
-		File file = new File("src/test/resources/provideAndRegRequest2.xml");
 		ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest2.xml");
 		List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
 		ExtrinsicObjectType eo = extrinsicObjects.get(0);
@@ -224,7 +229,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 	
 	@SuppressWarnings("unchecked")
 	@Test
-	public void storeDocument_shouldCallARegisteredContenthandler() throws Exception {
+	public void storeDocument_shouldCallARegisteredContentHandler() throws Exception {
 		PatientService ps = Context.getPatientService();
 		EncounterService es = Context.getEncounterService();
 		
@@ -250,5 +255,84 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 		assertEquals("2009.9.1.2455", uniqueId);
 		verify(mockHandler).saveContent(eq(ps.getPatient(2)), (Map<EncounterRole, Set<Provider>>) any(), eq(es.getEncounterType(1)), eq(expectedContent));
 	}
+
+    @Test
+    public void retrieveDocumentSetB_shouldFetchContentFromTheRegisteredContentHandler() throws JAXBException, FileNotFoundException, ParseException, UnsupportedEncodingException, UnsupportedGenderException, AlreadyRegisteredException, InvalidCodedValueException, ClassNotFoundException {
+        // given
+        CodedValue typeCode = new CodedValue("testType", "testCodes", "Test Type");
+        CodedValue formatCode = new CodedValue("testFormat", "testCodes", "Test Format");
+        Content content = new Content("testId", "My test document", typeCode, formatCode, "text/plain");
+
+        ContentHandler mockHandler = mock(ContentHandler.class);
+        when(mockHandler.fetchContent("testId")).thenReturn(content);
+        XDSbService mockXdsService = mock(XDSbService.class);
+        contextMockHelper.setService(XDSbService.class, mockXdsService);
+        when(as.getGlobalProperty(XdsDocumentRepositoryServiceImpl.REPOSITORY_UNIQUE_ID_GP)).thenReturn("1.19.6.24.109.42.1.5.1");
+
+        Class<? extends ContentHandler> cls = mockHandler.getClass();
+        doReturn(cls).when(mockXdsService).getDocumentHandlerClass("testId");
+
+        ContentHandlerService mockHandlerService = mock(ContentHandlerService.class);
+        contextMockHelper.setService(ContentHandlerService.class, mockHandlerService);
+        when(mockHandlerService.getContentHandlerByClass(cls)).thenReturn(mockHandler);
+
+        XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
+        RetrieveDocumentSetRequestType recRequest = parseRequestFromResourceName("retrieveDocumentsRequest-single.xml");
+
+        // when
+        RetrieveDocumentSetResponseType response = service.retrieveDocumentSetB(recRequest);
+
+        // then
+        verify(mockHandler).fetchContent("testId");
+        verify(mockHandlerService).getContentHandlerByClass(cls);
+        verify(mockXdsService).getDocumentHandlerClass("testId");
+        assertEquals(1, response.getDocumentResponse().size());
+    }
+
+    @Test
+    public void retrieveDocumentSetB_shouldReturnARegistryErrorIfDocumentNotFound() throws JAXBException, FileNotFoundException, ParseException, UnsupportedEncodingException, UnsupportedGenderException, AlreadyRegisteredException, InvalidCodedValueException, ClassNotFoundException {
+        // given
+        ContentHandler mockHandler = mock(ContentHandler.class);
+        when(mockHandler.fetchContent("testId")).thenReturn(null);
+        XDSbService mockXdsService = mock(XDSbService.class);
+        contextMockHelper.setService(XDSbService.class, mockXdsService);
+        when(as.getGlobalProperty(XdsDocumentRepositoryServiceImpl.REPOSITORY_UNIQUE_ID_GP)).thenReturn("1.19.6.24.109.42.1.5.1");
+
+        Class<? extends ContentHandler> cls = mockHandler.getClass();
+        doReturn(cls).when(mockXdsService).getDocumentHandlerClass("testId");
+
+        ContentHandlerService mockHandlerService = mock(ContentHandlerService.class);
+        contextMockHelper.setService(ContentHandlerService.class, mockHandlerService);
+        when(mockHandlerService.getContentHandlerByClass(cls)).thenReturn(mockHandler);
+
+        XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
+        RetrieveDocumentSetRequestType recRequest = parseRequestFromResourceName("retrieveDocumentsRequest-single.xml");
+
+        // when
+        RetrieveDocumentSetResponseType response = service.retrieveDocumentSetB(recRequest);
+
+        // then
+        verify(mockHandler).fetchContent("testId");
+        verify(mockHandlerService).getContentHandlerByClass(cls);
+        verify(mockXdsService).getDocumentHandlerClass("testId");
+        assertEquals(0, response.getDocumentResponse().size());
+        RegistryError registryError = response.getRegistryResponse().getRegistryErrorList().getRegistryError().get(0);
+        assertEquals(XDSException.XDS_ERR_MISSING_DOCUMENT, registryError.getErrorCode());
+    }
+
+    @Test
+    public void retrieveDocumentSetB_shouldReturnARegistryErrorIfRepositoryIdIsNotKnow() throws JAXBException, FileNotFoundException, ParseException, UnsupportedEncodingException, UnsupportedGenderException, AlreadyRegisteredException, InvalidCodedValueException, ClassNotFoundException {
+        // given
+        XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
+        RetrieveDocumentSetRequestType recRequest = parseRequestFromResourceName("retrieveDocumentsRequest-unknown-repo.xml");
+
+        // when
+        RetrieveDocumentSetResponseType response = service.retrieveDocumentSetB(recRequest);
+
+        // then
+        assertEquals(0, response.getDocumentResponse().size());
+        RegistryError registryError = response.getRegistryResponse().getRegistryErrorList().getRegistryError().get(0);
+        assertEquals(XDSException.XDS_ERR_UNKNOWN_REPOSITORY_ID, registryError.getErrorCode());
+    }
 	
 }
