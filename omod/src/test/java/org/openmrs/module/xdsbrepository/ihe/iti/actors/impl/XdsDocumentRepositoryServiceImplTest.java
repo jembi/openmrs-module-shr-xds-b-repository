@@ -41,12 +41,13 @@ import static org.mockito.Mockito.*;
 
 public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensitiveTest {
 
-    @Mock
-    private AdministrationService as;
-	
 	@Before
 	public void setup() throws Exception {
 		executeDataSet("src/test/resources/provideAndRegRequest-dataset.xml");
+
+        AdministrationService as = Context.getAdministrationService();
+        GlobalProperty gp = new GlobalProperty(XdsDocumentRepositoryServiceImpl.REPOSITORY_UNIQUE_ID_GP, "1.19.6.24.109.42.1.5.1");
+        as.saveGlobalProperty(gp);
 	}
 
     @SuppressWarnings("unchecked")
@@ -267,7 +268,6 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
         when(mockHandler.fetchContent("testId")).thenReturn(content);
         XDSbService mockXdsService = mock(XDSbService.class);
         contextMockHelper.setService(XDSbService.class, mockXdsService);
-        when(as.getGlobalProperty(XdsDocumentRepositoryServiceImpl.REPOSITORY_UNIQUE_ID_GP)).thenReturn("1.19.6.24.109.42.1.5.1");
 
         Class<? extends ContentHandler> cls = mockHandler.getClass();
         doReturn(cls).when(mockXdsService).getDocumentHandlerClass("testId");
@@ -296,7 +296,6 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
         when(mockHandler.fetchContent("testId")).thenReturn(null);
         XDSbService mockXdsService = mock(XDSbService.class);
         contextMockHelper.setService(XDSbService.class, mockXdsService);
-        when(as.getGlobalProperty(XdsDocumentRepositoryServiceImpl.REPOSITORY_UNIQUE_ID_GP)).thenReturn("1.19.6.24.109.42.1.5.1");
 
         Class<? extends ContentHandler> cls = mockHandler.getClass();
         doReturn(cls).when(mockXdsService).getDocumentHandlerClass("testId");
