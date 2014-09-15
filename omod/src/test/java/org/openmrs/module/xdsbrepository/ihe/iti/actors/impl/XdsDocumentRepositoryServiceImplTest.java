@@ -1,5 +1,6 @@
 package org.openmrs.module.xdsbrepository.ihe.iti.actors.impl;
 
+import org.dcm4chee.xds2.common.XDSConstants;
 import org.dcm4chee.xds2.common.exception.XDSException;
 import org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType;
 import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetRequestType;
@@ -258,7 +259,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 	}
 
     @Test
-    public void retrieveDocumentSetB_shouldFetchContentFromTheRegisteredContentHandler() throws JAXBException, FileNotFoundException, ParseException, UnsupportedEncodingException, UnsupportedGenderException, AlreadyRegisteredException, InvalidCodedValueException, ClassNotFoundException {
+    public void retrieveDocumentSetB_shouldFetchContentFromTheRegisteredContentHandlerAndReturnSuccess() throws JAXBException, FileNotFoundException, ParseException, UnsupportedEncodingException, UnsupportedGenderException, AlreadyRegisteredException, InvalidCodedValueException, ClassNotFoundException {
         // given
         CodedValue typeCode = new CodedValue("testType", "testCodes", "Test Type");
         CodedValue formatCode = new CodedValue("testFormat", "testCodes", "Test Format");
@@ -287,6 +288,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
         verify(mockHandlerService).getContentHandlerByClass(cls);
         verify(mockXdsService).getDocumentHandlerClass("testId");
         assertEquals(1, response.getDocumentResponse().size());
+        assertEquals(XDSConstants.XDS_B_STATUS_SUCCESS, response.getRegistryResponse().getStatus());
     }
 
     @Test
@@ -332,6 +334,43 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
         assertEquals(0, response.getDocumentResponse().size());
         RegistryError registryError = response.getRegistryResponse().getRegistryErrorList().getRegistryError().get(0);
         assertEquals(XDSException.XDS_ERR_UNKNOWN_REPOSITORY_ID, registryError.getErrorCode());
+    }
+
+    @Test
+    public void retrieveDocumentSetB_shouldReturnPartialSuccessIfNotAllDocWereFound() throws JAXBException, FileNotFoundException, ParseException, UnsupportedEncodingException, UnsupportedGenderException, AlreadyRegisteredException, InvalidCodedValueException, ClassNotFoundException {
+        // given
+        CodedValue typeCode = new CodedValue("testType", "testCodes", "Test Type");
+        CodedValue formatCode = new CodedValue("testFormat", "testCodes", "Test Format");
+        Content content = new Content("testId1", "My test document", typeCode, formatCode, "text/plain");
+
+        ContentHandler mockHandler = mock(ContentHandler.class);
+        when(mockHandler.fetchContent("testId1")).thenReturn(content);
+        when(mockHandler.fetchContent("testId2")).thenReturn(null);
+        XDSbService mockXdsService = mock(XDSbService.class);
+        contextMockHelper.setService(XDSbService.class, mockXdsService);
+
+        Class<? extends ContentHandler> cls = mockHandler.getClass();
+        doReturn(cls).when(mockXdsService).getDocumentHandlerClass("testId1");
+        doReturn(cls).when(mockXdsService).getDocumentHandlerClass("testId2");
+
+        ContentHandlerService mockHandlerService = mock(ContentHandlerService.class);
+        contextMockHelper.setService(ContentHandlerService.class, mockHandlerService);
+        when(mockHandlerService.getContentHandlerByClass(cls)).thenReturn(mockHandler);
+
+        XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
+        RetrieveDocumentSetRequestType recRequest = parseRequestFromResourceName("retrieveDocumentsRequest-multiple.xml");
+
+        // when
+        RetrieveDocumentSetResponseType response = service.retrieveDocumentSetB(recRequest);
+
+        // then
+        verify(mockHandler).fetchContent("testId1");
+        verify(mockHandler).fetchContent("testId2");
+        verify(mockHandlerService, times(2)).getContentHandlerByClass(cls);
+        verify(mockXdsService).getDocumentHandlerClass("testId1");
+        verify(mockXdsService).getDocumentHandlerClass("testId2");
+        assertEquals(1, response.getDocumentResponse().size());
+        assertEquals(XDSConstants.XDS_B_STATUS_PARTIAL_SUCCESS, response.getRegistryResponse().getStatus());
     }
 	
 }

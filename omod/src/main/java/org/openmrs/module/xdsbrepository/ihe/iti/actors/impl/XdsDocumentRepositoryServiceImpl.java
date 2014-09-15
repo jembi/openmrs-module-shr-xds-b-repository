@@ -509,55 +509,6 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 		pa.setCountry(addrComponents[5]);
 		return pa;
 	}
-/*
-	*//**
-	 * Retrieve a document
-	 * @see XdsDocumentRepositoryService#retrieveDocumentSetB(org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetRequestType)
-	 *//*
-	@Override
-    public RetrieveDocumentSetResponseType retrieveDocumentSetB(RetrieveDocumentSetRequestType request) {
-		AdministrationService as = Context.getAdministrationService();
-		String thisRepositoryUniqueId = as.getGlobalProperty(REPOSITORY_UNIQUE_ID_GP);
-		
-		RetrieveDocumentSetResponseType response = new RetrieveDocumentSetResponseType();
-		
-		List<DocumentRequest> docRequests = request.getDocumentRequest();
-		for (DocumentRequest docRequest : docRequests) {
-			String repositoryUniqueId = docRequest.getRepositoryUniqueId();
-			String documentUniqueId = docRequest.getDocumentUniqueId();
-			String homeCommunityId = docRequest.getHomeCommunityId();
-
-			if (!thisRepositoryUniqueId.equals(repositoryUniqueId)) {
-				// TODO error - not a document this repository will know about
-				continue;
-			}
-			
-			XDSbService xdsService = Context.getService(XDSbService.class);
-			Class<? extends ContentHandler> documentHandlerClass;
-			try {
-				documentHandlerClass = xdsService.getDocumentHandlerClass(documentUniqueId);
-				ContentHandlerService chs = Context.getService(ContentHandlerService.class);
-				ContentHandler h = chs.getContentHandlerByClass(documentHandlerClass);
-				Content c = h.fetchContent(documentUniqueId);
-                String payload = c.getPayload();
-
-                RetrieveDocumentSetResponseType.DocumentResponse docRes = new RetrieveDocumentSetResponseType.DocumentResponse();
-                docRes.setDocumentUniqueId(documentUniqueId);
-                docRes.setRepositoryUniqueId(repositoryUniqueId);
-                if (homeCommunityId != null && !homeCommunityId.isEmpty()) {
-                    docRes.setHomeCommunityId(homeCommunityId);
-                }
-                docRes.setMimeType(c.getContentType());
-                docRes.setDocument(new DataHandler(payload, c.getContentType(), ));
-                response.
-			} catch (ClassNotFoundException e) {
-				log.error(e);
-			}
-			
-		}
-		
-		return response;
-    }*/
 
     /**
      * Retrieve a document
