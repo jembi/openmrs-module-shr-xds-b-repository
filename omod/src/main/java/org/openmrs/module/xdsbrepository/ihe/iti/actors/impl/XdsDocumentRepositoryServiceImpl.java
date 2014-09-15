@@ -84,11 +84,12 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 		log.info("Start provideAndRegisterDocumentSetB");
 		
 		try	{
-			this.startSession();
+            if (!Context.isAuthenticated()) {
+                this.startSession();
+            }
 			
 			List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
-			extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
-			
+
 			// Save each document
 			Map<String, Class<? extends ContentHandler>> contentHandlers = new HashMap<String, Class<? extends ContentHandler>>();
 			for(ExtrinsicObjectType eot : extrinsicObjects) {
@@ -520,6 +521,10 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
         XDSbService xdsService = Context.getService(XDSbService.class);
         RetrieveDocumentSetResponseType rsp = iheFactory.createRetrieveDocumentSetResponseType();
         try {
+            if (!Context.isAuthenticated()) {
+                this.startSession();
+            }
+
             String repositoryUID = getRepositoryUniqueId();
             String docUid, reqRepoUid;
             Content content;
@@ -594,6 +599,8 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
                 XDSUtil.addError(rsp, new XDSException(XDSException.XDS_ERR_REPOSITORY_ERROR,
                         "Unexpected error in XDS service !: "+x.getMessage(),x));
             }
+        } finally {
+            Context.closeSession();
         }
         //AuditRequestInfo info = new AuditRequestInfo(LogHandler.getInboundSOAPHeader(), wsContext);
         //XDSAudit.logRepositoryRetrieveExport(req, rsp, info);

@@ -21,11 +21,8 @@
             <column name="handler_class" type="varchar(255)">
                 <constraints nullable="false"/>
             </column>
-            <column name="uuid" type="varchar(38)">
-                <constraints nullable="false"/>
-            </column>
         </createTable>
-        
+
 	    <createIndex indexName="idx_doc_id"
 	            tableName="xdsbrepository_dochandlers"
 	            unique="true">

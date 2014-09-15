@@ -60,7 +60,7 @@ public class XDSbServiceImpl implements XDSbService {
 			Class<? extends ContentHandler> contentHandler = contentHandlers.get(id);
 			dao.registerDocument(id, contentHandler);
 		}
-		
+
 		return sendMetadataToRegistry(getRegistryUrl(), submitObjectRequest);
 	}
 
@@ -68,7 +68,7 @@ public class XDSbServiceImpl implements XDSbService {
 	public Class<? extends ContentHandler> getDocumentHandlerClass(String documentUniqueId) throws ClassNotFoundException {
 		return dao.getDocumentHandlerClass(documentUniqueId);
 	}
-	
+
 	/**
 	 * Register documents on registry 
 	 * @throws Exception 

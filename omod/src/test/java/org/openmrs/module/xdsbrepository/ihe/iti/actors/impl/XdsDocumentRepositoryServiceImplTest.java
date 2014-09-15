@@ -47,8 +47,9 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 		executeDataSet("src/test/resources/provideAndRegRequest-dataset.xml");
 
         AdministrationService as = Context.getAdministrationService();
-        GlobalProperty gp = new GlobalProperty(XdsDocumentRepositoryServiceImpl.REPOSITORY_UNIQUE_ID_GP, "1.19.6.24.109.42.1.5.1");
-        as.saveGlobalProperty(gp);
+
+        GlobalProperty gp1 = new GlobalProperty(XdsDocumentRepositoryServiceImpl.REPOSITORY_UNIQUE_ID_GP, "1.19.6.24.109.42.1.5.1");
+        as.saveGlobalProperty(gp1);
 	}
 
     @SuppressWarnings("unchecked")

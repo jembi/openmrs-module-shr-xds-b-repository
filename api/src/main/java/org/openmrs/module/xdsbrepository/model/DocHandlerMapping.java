@@ -7,7 +7,7 @@ import javax.print.attribute.IntegerSyntax;
 
 @Entity
 @Table(name = "xdsbrepository_dochandlers")
-public class DocHandlerMapping extends BaseOpenmrsData {
+public class DocHandlerMapping {
 
 	@Id
     @GeneratedValue
@@ -26,7 +26,6 @@ public class DocHandlerMapping extends BaseOpenmrsData {
 		return id;
 	}
 
-    @Override
     public void setId(Integer integer) {
         this.id = integer;
     }
