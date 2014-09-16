@@ -12,11 +12,11 @@ public interface XDSbService extends OpenmrsService {
 
     /**
      * Registers a document with the configured XDS.b registry and stores a mapping
-     * from docuemntUniqueId to the supplied ContentHandler class.
+     * from documentUniqueId to the supplied ContentHandler class.
      *
-     * @param documentUniqueId - the docuemntUniqueId of the document to be registered
+     * @param documentUniqueId - the documentUniqueId of the document to be registered
      * @param contentHandler - the Content Handler class to store
-     * @return The response form the XDS registry
+     * @return The response from the XDS registry
      * @throws Exception
      * @throws MalformedURLException
      */
@@ -24,10 +24,10 @@ public interface XDSbService extends OpenmrsService {
 	
 	/**
 	 * Registers documents with the configured XDS.b registry and stores a mapping
-	 * from docuemntUniqueId to the supplied ContentHandler class for each document.
+	 * from documentUniqueId to the supplied ContentHandler class for each document.
 	 * 
 	 * @param contentHandlers - the map of document unique IDs to Content Handler class to be stored
-	 * @return The response form the XDS registry
+	 * @return The response from the XDS registry
 	 * @throws Exception 
 	 * @throws MalformedURLException 
 	 */

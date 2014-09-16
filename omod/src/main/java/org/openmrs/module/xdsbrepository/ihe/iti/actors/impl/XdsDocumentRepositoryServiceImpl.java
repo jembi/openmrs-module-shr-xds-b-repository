@@ -547,6 +547,9 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
                     documentHandlerClass = xdsService.getDocumentHandlerClass(docUid);
                     ContentHandlerService chs = Context.getService(ContentHandlerService.class);
                     ContentHandler h = chs.getContentHandlerByClass(documentHandlerClass);
+                    if (h == null) {
+                        h = chs.getDefaultUnstructuredHandler();
+                    }
                     content = h.fetchContent(docUid);
 
                     if ( content != null ) {

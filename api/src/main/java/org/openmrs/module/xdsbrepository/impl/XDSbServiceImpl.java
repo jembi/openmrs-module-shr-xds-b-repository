@@ -22,7 +22,7 @@ public class XDSbServiceImpl implements XDSbService {
 	
 	protected final Log log = LogFactory.getLog(this.getClass());
 
-    public static final String XDS_REGISTRY_URL_GP = "xds-b-repository.xdsregistry.url";
+	public static final String XDS_REGISTRY_URL_GP = "xds-b-repository.xdsregistry.url";
 	
 	private XDSbDAO dao;
 
@@ -34,20 +34,20 @@ public class XDSbServiceImpl implements XDSbService {
 	public void onStartup() {
 	}
 
-    /**
-     * Get the URL of the registry
-     * @throws MalformedURLException
-     */
-    private URL getRegistryUrl() throws MalformedURLException {
-        AdministrationService as = Context.getAdministrationService();
-        String url = as.getGlobalProperty(XDS_REGISTRY_URL_GP);
+	/**
+	 * Get the URL of the registry
+	 * @throws MalformedURLException
+	 */
+	private URL getRegistryUrl() throws MalformedURLException {
+		AdministrationService as = Context.getAdministrationService();
+		String url = as.getGlobalProperty(XDS_REGISTRY_URL_GP);
 
-        return new URL(url);
-    }
+		return new URL(url);
+	}
 
-    @Override
+	@Override
 	public RegistryResponseType registerDocument(String uniqueId, Class<? extends ContentHandler> contentHandler, SubmitObjectsRequest submitObjectRequest) throws Exception {
-        dao.registerDocument(uniqueId, contentHandler);
+		dao.registerDocument(uniqueId, contentHandler);
 		return sendMetadataToRegistry(getRegistryUrl(), submitObjectRequest);
 	}
 
@@ -70,20 +70,20 @@ public class XDSbServiceImpl implements XDSbService {
 	}
 
 	/**
-	 * Register documents on registry 
-	 * @throws Exception 
-	 */
-	protected RegistryResponseType sendMetadataToRegistry(URL registryUrl, SubmitObjectsRequest submitObjectRequest) throws Exception {
-        DocumentRegistryPortType port = DocumentRegistryPortTypeFactory.getDocumentRegistryPortSoap12(registryUrl.toString());
-        log.info("XDS.b: Send register document-b request to registry:" + registryUrl);
-        RegistryResponseType rsp = null;
-        try {
-            rsp = port.documentRegistryRegisterDocumentSetB(submitObjectRequest);
-        } catch (Exception e) {
-            throw new RegistryNotAvailableException("Document Registry not available: " + registryUrl, e);
-        }
-        return rsp;
-    }
+	* Register documents on registry
+	* @throws Exception
+	*/
+	protected RegistryResponseType sendMetadataToRegistry(URL registryUrl, SubmitObjectsRequest submitObjectRequest) throws RegistryNotAvailableException {
+		DocumentRegistryPortType port = DocumentRegistryPortTypeFactory.getDocumentRegistryPortSoap12(registryUrl.toString());
+		log.info("XDS.b: Send register document-b request to registry:" + registryUrl);
+		RegistryResponseType rsp;
+		try {
+			rsp = port.documentRegistryRegisterDocumentSetB(submitObjectRequest);
+		} catch (Exception e) {
+			throw new RegistryNotAvailableException("Document Registry not available: " + registryUrl, e);
+		}
+		return rsp;
+	}
 
 	public XDSbDAO getDao() {
 		return dao;

@@ -243,7 +243,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 		CodedValue typeCode = new CodedValue("testType", "testCodes", "Test Type");
 		CodedValue formatCode = new CodedValue("testFormat", "testCodes", "Test Format");
 		
-		Content expectedContent = new Content("testId", "My test document", typeCode, formatCode, "text/plain");
+		Content expectedContent = new Content("2009.9.1.2455", "My test document", typeCode, formatCode, "text/plain");
 		
 		ContentHandler mockHandler = mock(ContentHandler.class);
 		when(mockHandler.cloneHandler()).thenReturn(mockHandler);
@@ -287,6 +287,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
         // then
         verify(mockHandler).fetchContent("testId");
         verify(mockHandlerService).getContentHandlerByClass(cls);
+        verify(mockHandlerService, never()).getDefaultUnstructuredHandler();
         verify(mockXdsService).getDocumentHandlerClass("testId");
         assertEquals(1, response.getDocumentResponse().size());
         assertEquals(XDSConstants.XDS_B_STATUS_SUCCESS, response.getRegistryResponse().getStatus());
@@ -368,6 +369,45 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
         verify(mockHandler).fetchContent("testId1");
         verify(mockHandler).fetchContent("testId2");
         verify(mockHandlerService, times(2)).getContentHandlerByClass(cls);
+        verify(mockXdsService).getDocumentHandlerClass("testId1");
+        verify(mockXdsService).getDocumentHandlerClass("testId2");
+        assertEquals(1, response.getDocumentResponse().size());
+        assertEquals(XDSConstants.XDS_B_STATUS_PARTIAL_SUCCESS, response.getRegistryResponse().getStatus());
+    }
+
+    @Test
+    public void retrieveDocumentSetB_shouldCallTheDefaultHandlerIfNoRegisteredHandlersAreFound() throws JAXBException, FileNotFoundException, ParseException, UnsupportedEncodingException, UnsupportedGenderException, AlreadyRegisteredException, InvalidCodedValueException, ClassNotFoundException {
+        // given
+        CodedValue typeCode = new CodedValue("testType", "testCodes", "Test Type");
+        CodedValue formatCode = new CodedValue("testFormat", "testCodes", "Test Format");
+        Content content = new Content("testId1", "My test document", typeCode, formatCode, "text/plain");
+
+        ContentHandler mockHandler = mock(ContentHandler.class);
+        when(mockHandler.fetchContent("testId1")).thenReturn(content);
+        when(mockHandler.fetchContent("testId2")).thenReturn(null);
+        XDSbService mockXdsService = mock(XDSbService.class);
+        contextMockHelper.setService(XDSbService.class, mockXdsService);
+
+        Class<? extends ContentHandler> cls = mockHandler.getClass();
+        doReturn(cls).when(mockXdsService).getDocumentHandlerClass("testId1");
+        doReturn(cls).when(mockXdsService).getDocumentHandlerClass("testId2");
+
+        ContentHandlerService mockHandlerService = mock(ContentHandlerService.class);
+        contextMockHelper.setService(ContentHandlerService.class, mockHandlerService);
+        when(mockHandlerService.getContentHandlerByClass(cls)).thenReturn(null);
+        when(mockHandlerService.getDefaultUnstructuredHandler()).thenReturn(mockHandler);
+
+        XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
+        RetrieveDocumentSetRequestType recRequest = parseRequestFromResourceName("retrieveDocumentsRequest-multiple.xml");
+
+        // when
+        RetrieveDocumentSetResponseType response = service.retrieveDocumentSetB(recRequest);
+
+        // then
+        verify(mockHandler).fetchContent("testId1");
+        verify(mockHandler).fetchContent("testId2");
+        verify(mockHandlerService, times(2)).getContentHandlerByClass(cls);
+        verify(mockHandlerService, times(2)).getDefaultUnstructuredHandler();
         verify(mockXdsService).getDocumentHandlerClass("testId1");
         verify(mockXdsService).getDocumentHandlerClass("testId2");
         assertEquals(1, response.getDocumentResponse().size());
