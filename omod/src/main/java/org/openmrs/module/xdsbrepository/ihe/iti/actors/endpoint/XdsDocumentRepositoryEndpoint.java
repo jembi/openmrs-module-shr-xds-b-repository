@@ -4,6 +4,8 @@ import javax.xml.bind.JAXBElement;
 import javax.xml.namespace.QName;
 
 import org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType;
+import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetRequestType;
+import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetResponseType;
 import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.XdsDocumentRepositoryService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -44,6 +46,22 @@ public class XdsDocumentRepositoryEndpoint {
 	public JAXBElement<RegistryResponseType> provideAndRegisterDocumentSetB(@RequestPayload JAXBElement<ProvideAndRegisterDocumentSetRequestType> request)
 	{
 		return new JAXBElement<RegistryResponseType>(new QName("urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0","RegistryResponse"), RegistryResponseType.class, this.m_service.provideAndRegisterDocumentSetB(request.getValue()));
+	}
+	
+	/**
+	 * 
+	 * Retrieve Document endpoint
+	 * 
+	 * @param request
+	 * @param header
+	 * @return
+	 */
+	@Action("urn:ihe:iti:2007:RetrieveDocumentSet")
+	@SoapAction("urn:ihe:iti:2007:RetrieveDocumentSet")
+	@ResponsePayload
+	public JAXBElement<RetrieveDocumentSetResponseType> retrieveDocumentSetB(@RequestPayload JAXBElement<RetrieveDocumentSetRequestType> request)
+	{
+		return new JAXBElement<RetrieveDocumentSetResponseType>(new QName("urn:ihe:iti:xds-b:2007","RetrieveDocumentSetResponse"), RetrieveDocumentSetResponseType.class, this.m_service.retrieveDocumentSetB(request.getValue()));
 	}
 	
 }

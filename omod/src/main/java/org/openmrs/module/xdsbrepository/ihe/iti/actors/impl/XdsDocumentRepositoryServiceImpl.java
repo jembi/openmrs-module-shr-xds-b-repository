@@ -1,61 +1,41 @@
 package org.openmrs.module.xdsbrepository.ihe.iti.actors.impl;
 
-import java.io.UnsupportedEncodingException;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import javax.xml.bind.JAXBException;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.dcm4chee.xds2.common.XDSConstants;
+import org.dcm4chee.xds2.common.XDSUtil;
+import org.dcm4chee.xds2.common.audit.AuditRequestInfo;
+import org.dcm4chee.xds2.common.audit.XDSAudit;
+import org.dcm4chee.xds2.common.exception.XDSException;
 import org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType;
 import org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType.Document;
 import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetRequestType;
+import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetRequestType.DocumentRequest;
 import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetResponseType;
-import org.dcm4chee.xds2.infoset.rim.ClassificationType;
-import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
-import org.dcm4chee.xds2.infoset.rim.RegistryError;
-import org.dcm4chee.xds2.infoset.rim.RegistryErrorList;
-import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
-import org.dcm4chee.xds2.infoset.rim.SlotType1;
-import org.dcm4chee.xds2.infoset.rim.SubmitObjectsRequest;
-import org.dcm4chee.xds2.infoset.util.DocumentRegistryPortTypeFactory;
+import org.dcm4chee.xds2.infoset.rim.*;
 import org.dcm4chee.xds2.infoset.util.InfosetUtil;
-import org.dcm4chee.xds2.infoset.ws.registry.DocumentRegistryPortType;
-import org.openmrs.EncounterRole;
-import org.openmrs.EncounterType;
-import org.openmrs.Patient;
-import org.openmrs.PatientIdentifier;
-import org.openmrs.PatientIdentifierType;
-import org.openmrs.PersonAddress;
-import org.openmrs.PersonName;
-import org.openmrs.Provider;
-import org.openmrs.api.AdministrationService;
-import org.openmrs.api.EncounterService;
-import org.openmrs.api.PatientIdentifierException;
-import org.openmrs.api.PatientService;
-import org.openmrs.api.ProviderService;
+import org.openmrs.*;
+import org.openmrs.api.*;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.shr.contenthandler.UnstructuredDataHandler;
 import org.openmrs.module.shr.contenthandler.api.CodedValue;
 import org.openmrs.module.shr.contenthandler.api.Content;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
 import org.openmrs.module.shr.contenthandler.api.ContentHandlerService;
+import org.openmrs.module.xdsbrepository.XDSbService;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.XdsDocumentRepositoryService;
-import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.RegistryNotAvailableException;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.UnsupportedGenderException;
 import org.openmrs.util.OpenmrsConstants;
 import org.springframework.stereotype.Service;
+import sun.rmi.log.LogHandler;
+
+import javax.activation.DataHandler;
+import javax.xml.bind.JAXBException;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.*;
 
 /**
  * XdsDocumentRepository Service Implementation
@@ -64,12 +44,14 @@ import org.springframework.stereotype.Service;
  */
 @Service
 public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositoryService {
+
+    private ObjectFactory factory = new ObjectFactory();
+    private org.dcm4chee.xds2.infoset.ihe.ObjectFactory iheFactory = new org.dcm4chee.xds2.infoset.ihe.ObjectFactory();
 	
 	public static final String WS_USERNAME_GP = "xds-b-repository.ws.username";
 	public static final String WS_PASSWORD_GP = "xds-b-repository.ws.password";
-	
-	public static final String XDS_REGISTRY_URL_GP = "xds-b-repository.xdsregistry.url";
-	
+	public static final String REPOSITORY_UNIQUE_ID_GP = "xds-b-repository.xdsrepository.uniqueId";
+
 	public static final String SLOT_NAME_AUTHOR_ROLE = "authorRole";
 	public static final String SLOT_NAME_AUTHOR_INSTITUTION = "authorInstitution";
 	public static final String SLOT_NAME_AUTHOR_SPECIALITY = "authorSpecialty";
@@ -94,7 +76,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 		
 	/**
 	 * Document repository service implementation
-	 * @see org.openmrs.module.xdsbrepository.ihe.iti.actors.XdsDocumentRepositoryService#provideAndRegisterDocumentSetB(org.openmrs.module.xdsbrepository.ihe.iti.actors.transport.xds.ProvideAndRegisterDocumentSetRequestType)
+	 * @see XdsDocumentRepositoryService#provideAndRegisterDocumentSetB(org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType)
 	 */
 	@Override
     public RegistryResponseType provideAndRegisterDocumentSetB(ProvideAndRegisterDocumentSetRequestType request) {
@@ -102,20 +84,22 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 		log.info("Start provideAndRegisterDocumentSetB");
 		
 		try	{
-			this.startSession();
+            if (!Context.isAuthenticated()) {
+                this.startSession();
+            }
 			
-			URL registryURL = this.getRegistryUrl();
 			List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
-			extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
-			
+
 			// Save each document
-			List<String> storedIds = new ArrayList<String>();
+			Map<String, Class<? extends ContentHandler>> contentHandlers = new HashMap<String, Class<? extends ContentHandler>>();
 			for(ExtrinsicObjectType eot : extrinsicObjects) {
-				storedIds.add(this.storeDocument(eot, request));
+				contentHandlers.put(this.storeDocument(eot, request), UnstructuredDataHandler.class);
 			}
 
 			SubmitObjectsRequest submitObjectRequest = request.getSubmitObjectsRequest();
-			return this.sendMetadataToRegistry(registryURL, submitObjectRequest);
+			XDSbService xdsService = Context.getService(XDSbService.class);
+			
+			return xdsService.registerDocuments(contentHandlers, submitObjectRequest);
 		} catch (Exception e)	{
 			// Log the error
 			log.error(e);
@@ -142,22 +126,6 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
     }
 
 	/**
-	 * Register documents on registry 
-	 * @throws Exception 
-	 */
-	protected RegistryResponseType sendMetadataToRegistry(URL registryUrl, SubmitObjectsRequest submitObjectRequest) throws Exception {
-        DocumentRegistryPortType port = DocumentRegistryPortTypeFactory.getDocumentRegistryPortSoap12(registryUrl.toString());
-        log.info("XDS.b: Send register document-b request to registry:" + registryUrl);
-        RegistryResponseType rsp = null;
-        try {
-            rsp = port.documentRegistryRegisterDocumentSetB(submitObjectRequest);
-        } catch (Exception e) {
-            throw new RegistryNotAvailableException("Document Registry not available: " + registryUrl, e);
-        }
-        return rsp;
-    }
-
-	/**
 	 * Store a document and return its UUID
 	 * 
 	 * @throws UnsupportedEncodingException 
@@ -170,6 +138,8 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 		String docId = eot.getId();
 		Map<String, Document> docs = InfosetUtil.getDocuments(request);
 		Document document = docs.get(docId);
+		
+		String docUniqueId = InfosetUtil.getExternalIdentifierValue(XDSConstants.UUID_XDSDocumentEntry_uniqueId, eot);
 		
 		CodedValue typeCode = null;
 		CodedValue formatCode = null;
@@ -186,10 +156,10 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			}
 		}
 		
-		Content content = new Content(new String(document.getValue(), "UTF-8"), typeCode, formatCode, contentType);
+		Content content = new Content(docUniqueId, new String(document.getValue(), "UTF-8"), typeCode, formatCode, contentType);
 		
 		ContentHandlerService chs = Context.getService(ContentHandlerService.class);
-		ContentHandler defaultHandler = chs.getDefaultUnstructuredHandler(typeCode, formatCode);
+		ContentHandler defaultHandler = chs.getDefaultUnstructuredHandler();
 		ContentHandler discreteHandler = chs.getContentHandler(typeCode, formatCode);
 		
 		Patient patient = findOrCreatePatient(eot);
@@ -203,7 +173,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			discreteHandler.saveContent(patient, providersByRole, encounterType, content);
 		}
 		
-	    return InfosetUtil.getExternalIdentifierValue(XDSConstants.UUID_XDSDocumentEntry_uniqueId, eot);
+	    return docUniqueId;
     }
 
 	/**
@@ -541,25 +511,117 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 		return pa;
 	}
 
-	/**
-	 * Get the URL of the registry
-	 * @throws MalformedURLException 
-	 */
-	private URL getRegistryUrl() throws MalformedURLException {
-		AdministrationService as = Context.getAdministrationService();
-	    String url = as.getGlobalProperty(XDS_REGISTRY_URL_GP);
-	    
-		return new URL(url);
+    /**
+     * Retrieve a document
+     * Code mostly borrowed from: https://github.com/dcm4che/dcm4chee-xds/blob/master/dcm4chee-xds2-repository-ws/src/main/java/org/dcm4chee/xds2/repository/ws/XDSRepositoryBean.java#L204
+     * @see XdsDocumentRepositoryService#retrieveDocumentSetB(org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetRequestType)
+     */
+	@Override
+    public RetrieveDocumentSetResponseType retrieveDocumentSetB(RetrieveDocumentSetRequestType req) {
+        XDSbService xdsService = Context.getService(XDSbService.class);
+        RetrieveDocumentSetResponseType rsp = iheFactory.createRetrieveDocumentSetResponseType();
+        try {
+            if (!Context.isAuthenticated()) {
+                this.startSession();
+            }
+
+            String repositoryUID = getRepositoryUniqueId();
+            String docUid, reqRepoUid;
+            Content content;
+            RetrieveDocumentSetResponseType.DocumentResponse docRsp;
+            List<String> retrievedUIDs = new ArrayList<String>();
+            int requestCount = req.getDocumentRequest().size();
+            RegistryErrorList regErrors = factory.createRegistryErrorList();
+            List<RegistryError> mainErrors = regErrors.getRegistryError();
+            for ( DocumentRequest docReq : req.getDocumentRequest() ) {
+                reqRepoUid = docReq.getRepositoryUniqueId();
+                docUid = docReq.getDocumentUniqueId();
+                if (reqRepoUid == null || docUid == null || reqRepoUid.trim().length() == 0 || docUid.trim().length() == 0) {
+                    mainErrors.add(XDSUtil.getRegistryError(XDSException.XDS_ERR_SEVERITY_ERROR, XDSException.XDS_ERR_REPOSITORY_ERROR,
+                            "Missing required request parameter! (Repository- or Document Unique ID)", null));
+                    continue;
+                }
+                if (reqRepoUid.equals(repositoryUID)) {
+
+                    Class<? extends ContentHandler> documentHandlerClass;
+                    documentHandlerClass = xdsService.getDocumentHandlerClass(docUid);
+                    ContentHandlerService chs = Context.getService(ContentHandlerService.class);
+                    ContentHandler h = chs.getContentHandlerByClass(documentHandlerClass);
+                    if (h == null) {
+                        h = chs.getDefaultUnstructuredHandler();
+                    }
+                    content = h.fetchContent(docUid);
+
+                    if ( content != null ) {
+                        try {
+                            docRsp = getDocumentResponse(content, getRepositoryUniqueId());
+                            rsp.getDocumentResponse().add(docRsp);
+                            retrievedUIDs.add(docUid);
+                        } catch (IOException e) {
+                            String msg = "Error in building DocumentResponse for document:"+content;
+                            log.error(msg);
+                            mainErrors.add(XDSUtil.getRegistryError(XDSException.XDS_ERR_SEVERITY_ERROR,
+                                    XDSException.XDS_ERR_REPOSITORY_ERROR, msg, docUid));
+                        }
+                    } else {
+                        String msg = "Document not found! document UID:"+docUid;
+                        log.warn(msg);
+                        mainErrors.add(XDSUtil.getRegistryError(XDSException.XDS_ERR_SEVERITY_ERROR,
+                                XDSException.XDS_ERR_MISSING_DOCUMENT, msg, docUid));
+                    }
+                } else {
+                    String msg = "DocumentRepositoryUID="+reqRepoUid+" is unknown! This repository unique ID:"+repositoryUID;
+                    log.warn(msg);
+                    mainErrors.add(XDSUtil.getRegistryError(XDSException.XDS_ERR_SEVERITY_ERROR,
+                            XDSException.XDS_ERR_UNKNOWN_REPOSITORY_ID, msg, docUid));
+                }
+            }
+            RegistryResponseType regRsp = factory.createRegistryResponseType();
+
+            int nrOfDocs = rsp.getDocumentResponse().size();
+            if (nrOfDocs == 0) {
+                if (mainErrors.size() == 0)
+                    throw new XDSException(XDSException.XDS_ERR_MISSING_DOCUMENT,
+                            "None of the requested documents were found. This repository unique ID " + repositoryUID, null);
+                regRsp.setStatus(XDSConstants.XDS_B_STATUS_FAILURE);
+            } else if (nrOfDocs < requestCount) {
+                regRsp.setStatus(XDSConstants.XDS_B_STATUS_PARTIAL_SUCCESS);
+            } else {
+                regRsp.setStatus(XDSConstants.XDS_B_STATUS_SUCCESS);
+            }
+
+            if (mainErrors.size() > 0) {
+                regRsp.setRegistryErrorList(regErrors);
+            }
+            rsp.setRegistryResponse(regRsp);
+
+        } catch (Exception x) {
+            if (x instanceof XDSException) {
+                XDSUtil.addError(rsp, (XDSException) x);
+            } else {
+                XDSUtil.addError(rsp, new XDSException(XDSException.XDS_ERR_REPOSITORY_ERROR,
+                        "Unexpected error in XDS service !: "+x.getMessage(),x));
+            }
+        } finally {
+            Context.closeSession();
+        }
+        //AuditRequestInfo info = new AuditRequestInfo(LogHandler.getInboundSOAPHeader(), wsContext);
+        //XDSAudit.logRepositoryRetrieveExport(req, rsp, info);
+        return rsp;
     }
 
-	/**
-	 * Retrieve a document
-	 * @see org.openmrs.module.xdsbrepository.ihe.iti.actors.XdsDocumentRepositoryService#retrieveDocumentSetB(org.openmrs.module.xdsbrepository.ihe.iti.actors.transport.xds.RetrieveDocumentSetRequestType)
-	 */
-	@Override
-    public RetrieveDocumentSetResponseType retrieveDocumentSetB(RetrieveDocumentSetRequestType request) {
-		// TODO:
-		return null;
+    private String getRepositoryUniqueId() {
+        return Context.getAdministrationService().getGlobalProperty(REPOSITORY_UNIQUE_ID_GP);
+    }
+
+    private RetrieveDocumentSetResponseType.DocumentResponse getDocumentResponse(Content content, String repositoryUniqueId) throws IOException {
+        RetrieveDocumentSetResponseType.DocumentResponse docRsp;
+        docRsp = iheFactory.createRetrieveDocumentSetResponseTypeDocumentResponse();
+        docRsp.setDocumentUniqueId(content.getContentId());
+        docRsp.setMimeType(content.getContentType());
+        docRsp.setRepositoryUniqueId(repositoryUniqueId);
+        docRsp.setDocument(new DataHandler(content.getPayload(), content.getContentType()));
+        return docRsp;
     }
 
 }

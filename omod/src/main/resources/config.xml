@@ -36,9 +36,9 @@
 	</require_modules>
 	
 	<!-- Maps hibernate file's, if present -->
-	<mappingFiles>
-				
-	</mappingFiles>
+    <packagesWithMappedClasses>
+        org.openmrs.module.xdsbrepository.model
+    </packagesWithMappedClasses>
 
 	<!-- Internationalization -->
 	<!-- All message codes should start with ${project.parent.artifactId}. -->
@@ -72,6 +72,11 @@
 		<defaultValue>http://xds.marc-hi.ca:1025/xdsservice/xdsregistry</defaultValue>
 		<description>The url of the XDSb registry to use.</description>
 	</globalProperty>
+    <globalProperty>
+        <property>${project.parent.artifactId}.xdsrepository.uniqueId</property>
+        <defaultValue>1.19.6.24.109.42.1.5.1</defaultValue>
+        <description>The id of this XDSb repository.</description>
+    </globalProperty>
 
 </module>
 

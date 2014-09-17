@@ -1,0 +1,6 @@
+<RetrieveDocumentSetRequest xmlns="urn:ihe:iti:xds-b:2007" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <DocumentRequest>
+        <RepositoryUniqueId>1.19.6.24.109.42.1.5.1</RepositoryUniqueId>
+        <DocumentUniqueId>testId</DocumentUniqueId>
+    </DocumentRequest>
+</RetrieveDocumentSetRequest>
