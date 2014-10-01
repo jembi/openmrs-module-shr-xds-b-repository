@@ -2,6 +2,7 @@ package org.openmrs.module.xdsbrepository.db.hibernate;
 
 import org.hibernate.Query;
 import org.hibernate.SessionFactory;
+import org.openmrs.api.context.Context;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
 import org.openmrs.module.xdsbrepository.model.DocHandlerMapping;
 import org.openmrs.module.xdsbrepository.db.XDSbDAO;
@@ -27,7 +28,7 @@ public class HibernateXDSbDAO implements XDSbDAO {
         if (docMap == null) {
             return null;
         }
-		return (Class<? extends ContentHandler>) this.getClass().getClassLoader().loadClass(docMap.getHandlerClass());
+        return (Class<? extends ContentHandler>) Context.loadClass(docMap.getHandlerClass());
 	}
 
     public SessionFactory getSessionFactory() {
