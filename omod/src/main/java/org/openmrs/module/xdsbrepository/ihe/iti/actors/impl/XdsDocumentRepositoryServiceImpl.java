@@ -23,16 +23,21 @@ import org.openmrs.module.shr.contenthandler.api.Content;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
 import org.openmrs.module.shr.contenthandler.api.ContentHandlerService;
 import org.openmrs.module.xdsbrepository.XDSbService;
+import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.XdsDocumentRepositoryService;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.UnsupportedGenderException;
 import org.openmrs.util.OpenmrsConstants;
 import org.springframework.stereotype.Service;
+
 import sun.rmi.log.LogHandler;
 
 import javax.activation.DataHandler;
+import javax.xml.bind.DatatypeConverter;
 import javax.xml.bind.JAXBException;
+
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
+import java.security.MessageDigest;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -48,10 +53,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
     private ObjectFactory factory = new ObjectFactory();
     private org.dcm4chee.xds2.infoset.ihe.ObjectFactory iheFactory = new org.dcm4chee.xds2.infoset.ihe.ObjectFactory();
 	
-	public static final String WS_USERNAME_GP = "xds-b-repository.ws.username";
-	public static final String WS_PASSWORD_GP = "xds-b-repository.ws.password";
-	public static final String REPOSITORY_UNIQUE_ID_GP = "xds-b-repository.xdsrepository.uniqueId";
-
+	public static final String SLOT_NAME_HASH = "hash";
 	public static final String SLOT_NAME_AUTHOR_ROLE = "authorRole";
 	public static final String SLOT_NAME_AUTHOR_INSTITUTION = "authorInstitution";
 	public static final String SLOT_NAME_AUTHOR_SPECIALITY = "authorSpecialty";
@@ -66,8 +68,8 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	 */
 	private void startSession() {
 		AdministrationService as = Context.getAdministrationService();
-		String username = as.getGlobalProperty(WS_USERNAME_GP);
-		String password = as.getGlobalProperty(WS_PASSWORD_GP);
+		String username = as.getGlobalProperty(XDSbServiceConstants.WS_USERNAME_GP);
+		String password = as.getGlobalProperty(XDSbServiceConstants.WS_PASSWORD_GP);
 		
 		Context.openSession();
 		Context.authenticate(username, password);
@@ -110,11 +112,11 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			RegistryResponseType response = new RegistryResponseType();
 			response.setStatus(XDSConstants.XDS_B_STATUS_FAILURE);
 			RegistryErrorList errorList = new RegistryErrorList();
-			errorList.setHighestSeverity(XDSConstants.SEVERITY_ERROR);
+			errorList.setHighestSeverity(XDSbServiceConstants.SEVERITY_ERROR);
 			RegistryError error = new RegistryError();
-			error.setErrorCode(XDSConstants.ERROR_XDS_REPOSITORY_ERROR);
+			error.setErrorCode(XDSbServiceConstants.ERROR_XDS_REPOSITORY_ERROR);
 			error.setCodeContext(e.getMessage());
-			error.setSeverity(XDSConstants.SEVERITY_ERROR);
+			error.setSeverity(XDSbServiceConstants.SEVERITY_ERROR);
 			errorList.getRegistryError().add(error);
 			response.setRegistryErrorList(errorList);
 			return response;
@@ -157,6 +159,26 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 		}
 		
 		Content content = new Content(docUniqueId, new String(document.getValue(), "UTF-8"), typeCode, formatCode, contentType);
+		
+		// Add the hash
+		String hashValue = InfosetUtil.getSlotValue(eot.getSlot(), SLOT_NAME_HASH, null);
+		if(hashValue == null)
+		{
+			SlotType1 hashSlot = new SlotType1();
+			hashSlot.setName(SLOT_NAME_HASH);
+			hashSlot.setValueList(new ValueListType());
+			try
+			{
+				MessageDigest digest = MessageDigest.getInstance("SHA-1");
+				digest.update(content.getRawData());
+				hashSlot.getValueList().getValue().add(DatatypeConverter.printBase64Binary(digest.digest()));
+				eot.getSlot().add(hashSlot);
+			}
+			catch(Exception e)
+			{
+				log.error(e);
+			}
+		}
 		
 		ContentHandlerService chs = Context.getService(ContentHandlerService.class);
 		ContentHandler defaultHandler = chs.getDefaultUnstructuredHandler();
@@ -611,7 +633,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
     }
 
     private String getRepositoryUniqueId() {
-        return Context.getAdministrationService().getGlobalProperty(REPOSITORY_UNIQUE_ID_GP);
+        return Context.getAdministrationService().getGlobalProperty(XDSbServiceConstants.REPOSITORY_UNIQUE_ID_GP);
     }
 
     private RetrieveDocumentSetResponseType.DocumentResponse getDocumentResponse(Content content, String repositoryUniqueId) throws IOException {

@@ -1,20 +1,29 @@
 package org.openmrs.module.xdsbrepository.impl;
 
+import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.Marshaller;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
 import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
+import org.dcm4chee.xds2.infoset.rim.SlotType1;
 import org.dcm4chee.xds2.infoset.rim.SubmitObjectsRequest;
+import org.dcm4chee.xds2.infoset.rim.ValueListType;
 import org.dcm4chee.xds2.infoset.util.DocumentRegistryPortTypeFactory;
+import org.dcm4chee.xds2.infoset.util.InfosetUtil;
 import org.dcm4chee.xds2.infoset.ws.registry.DocumentRegistryPortType;
 import org.openmrs.api.AdministrationService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
 import org.openmrs.module.xdsbrepository.XDSbService;
+import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
 import org.openmrs.module.xdsbrepository.db.XDSbDAO;
 import org.openmrs.module.xdsbrepository.exceptions.RegistryNotAvailableException;
 
@@ -22,8 +31,10 @@ public class XDSbServiceImpl implements XDSbService {
 	
 	protected final Log log = LogFactory.getLog(this.getClass());
 
-	public static final String XDS_REGISTRY_URL_GP = "xds-b-repository.xdsregistry.url";
-	
+
+	private static final String SLOT_NAME_REPOSITORY_UNIQUE_ID = "repositoryUniqueId";
+	private static final String ERROR_FAILURE = "urn:oasis:names:tc:ebxml-regrep:ResponseStatusType:Failure";
+
 	private XDSbDAO dao;
 
 	@Override
@@ -40,7 +51,7 @@ public class XDSbServiceImpl implements XDSbService {
 	 */
 	private URL getRegistryUrl() throws MalformedURLException {
 		AdministrationService as = Context.getAdministrationService();
-		String url = as.getGlobalProperty(XDS_REGISTRY_URL_GP);
+		String url = as.getGlobalProperty(XDSbServiceConstants.XDS_REGISTRY_URL_GP);
 
 		return new URL(url);
 	}
@@ -74,11 +85,41 @@ public class XDSbServiceImpl implements XDSbService {
 	* @throws Exception
 	*/
 	protected RegistryResponseType sendMetadataToRegistry(URL registryUrl, SubmitObjectsRequest submitObjectRequest) throws RegistryNotAvailableException {
+		
 		DocumentRegistryPortType port = DocumentRegistryPortTypeFactory.getDocumentRegistryPortSoap12(registryUrl.toString());
 		log.info("XDS.b: Send register document-b request to registry:" + registryUrl);
+		
+		// JF: Fix meta-data issue
+		for(ExtrinsicObjectType eot : InfosetUtil.getExtrinsicObjects(submitObjectRequest))
+		{
+			String repositoryUniqueId = InfosetUtil.getSlotValue(eot.getSlot(), SLOT_NAME_REPOSITORY_UNIQUE_ID, null);
+			if(repositoryUniqueId == null)
+			{
+				SlotType1 repositorySlot = new SlotType1();
+				repositorySlot.setName(SLOT_NAME_REPOSITORY_UNIQUE_ID);
+				repositorySlot.setValueList(new ValueListType());
+				repositorySlot.getValueList().getValue().add(Context.getAdministrationService().getGlobalProperty(XDSbServiceConstants.REPOSITORY_UNIQUE_ID_GP));
+				eot.getSlot().add(repositorySlot);
+			}
+		}
+				
 		RegistryResponseType rsp;
 		try {
+			
+			// Serialize request (for logging)
+			StringWriter writer = new StringWriter();
+			JAXBContext context = JAXBContext.newInstance(SubmitObjectsRequest.class);
+			Marshaller m = context.createMarshaller();
+			m.marshal(submitObjectRequest, writer);
+			log.debug(writer.toString());
+			
+			// Send the request
 			rsp = port.documentRegistryRegisterDocumentSetB(submitObjectRequest);
+			
+			// Was the response a success? 
+			if(rsp.getStatus().equals(ERROR_FAILURE))
+				throw new RegistryNotAvailableException("RegisterDocumentSet resulted in Error");
+			
 		} catch (Exception e) {
 			throw new RegistryNotAvailableException("Document Registry not available: " + registryUrl, e);
 		}
