@@ -33,6 +33,7 @@
 	<!-- Required modules -->
 	<require_modules>
 		<require_module version="1.2.0">org.openmrs.module.shr-contenthandler</require_module>
+		<require_module version="0.1.0">org.openmrs.module.shr-atna</require_module>
 	</require_modules>
 	
 	<!-- Maps hibernate file's, if present -->

@@ -84,6 +84,15 @@
   			<scope>provided</scope>
 		</dependency>
 		
+		<!-- Audit Handler  -->
+		<dependency>
+			<groupId>org.openmrs.module</groupId>
+			<artifactId>shr-atna-api</artifactId>
+			<version>0.1.0</version>
+			<type>jar</type>
+  			<scope>provided</scope>
+		</dependency>
+		
 		<!-- DCM4CHEE modules (for JAX-b classes and InfoSetUtil) -->
 		<dependency>
 			<groupId>org.dcm4che</groupId>
