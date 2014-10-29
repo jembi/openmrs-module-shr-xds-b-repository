@@ -564,10 +564,10 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
                         h = chs.getDefaultUnstructuredHandler();
                     }
                     content = h.fetchContent(docUid);
-
+                    
                     if ( content != null ) {
                         try {
-                            docRsp = getDocumentResponse(content, getRepositoryUniqueId());
+                            docRsp = getDocumentResponse(content, docUid, getRepositoryUniqueId());
                             rsp.getDocumentResponse().add(docRsp);
                             retrievedUIDs.add(docUid);
                         } catch (IOException e) {
@@ -627,10 +627,15 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
         return Context.getAdministrationService().getGlobalProperty(REPOSITORY_UNIQUE_ID_GP);
     }
 
-    private RetrieveDocumentSetResponseType.DocumentResponse getDocumentResponse(Content content, String repositoryUniqueId) throws IOException {
+    private RetrieveDocumentSetResponseType.DocumentResponse getDocumentResponse(Content content, String documentUniqueId, String repositoryUniqueId) throws IOException {
         RetrieveDocumentSetResponseType.DocumentResponse docRsp;
         docRsp = iheFactory.createRetrieveDocumentSetResponseTypeDocumentResponse();
-        docRsp.setDocumentUniqueId(content.getContentId());
+        docRsp.setDocumentUniqueId(documentUniqueId);
+        
+        // JF : HACK: New Document Unique Id if different
+        if(!content.getContentId().equals(documentUniqueId))
+        	docRsp.setNewDocumentUniqueId(content.getContentId());
+        
         docRsp.setMimeType(content.getContentType());
         docRsp.setRepositoryUniqueId(repositoryUniqueId);
         docRsp.setDocument(new DataHandler(content.getPayload(), content.getContentType()));
