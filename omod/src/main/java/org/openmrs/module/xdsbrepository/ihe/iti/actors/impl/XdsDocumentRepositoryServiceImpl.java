@@ -1,5 +1,21 @@
 package org.openmrs.module.xdsbrepository.ihe.iti.actors.impl;
 
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import javax.activation.DataHandler;
+import javax.xml.bind.JAXBException;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.dcm4chee.xds2.common.XDSConstants;
@@ -12,10 +28,29 @@ import org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType.Do
 import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetRequestType;
 import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetRequestType.DocumentRequest;
 import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetResponseType;
-import org.dcm4chee.xds2.infoset.rim.*;
+import org.dcm4chee.xds2.infoset.rim.ClassificationType;
+import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
+import org.dcm4chee.xds2.infoset.rim.ObjectFactory;
+import org.dcm4chee.xds2.infoset.rim.RegistryError;
+import org.dcm4chee.xds2.infoset.rim.RegistryErrorList;
+import org.dcm4chee.xds2.infoset.rim.RegistryPackageType;
+import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
+import org.dcm4chee.xds2.infoset.rim.SlotType1;
+import org.dcm4chee.xds2.infoset.rim.SubmitObjectsRequest;
 import org.dcm4chee.xds2.infoset.util.InfosetUtil;
-import org.openmrs.*;
-import org.openmrs.api.*;
+import org.openmrs.EncounterRole;
+import org.openmrs.EncounterType;
+import org.openmrs.Patient;
+import org.openmrs.PatientIdentifier;
+import org.openmrs.PatientIdentifierType;
+import org.openmrs.PersonAddress;
+import org.openmrs.PersonName;
+import org.openmrs.Provider;
+import org.openmrs.api.AdministrationService;
+import org.openmrs.api.EncounterService;
+import org.openmrs.api.PatientIdentifierException;
+import org.openmrs.api.PatientService;
+import org.openmrs.api.ProviderService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.shr.atna.api.AtnaAuditService;
 import org.openmrs.module.shr.contenthandler.UnstructuredDataHandler;
@@ -28,17 +63,6 @@ import org.openmrs.module.xdsbrepository.ihe.iti.actors.XdsDocumentRepositorySer
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.UnsupportedGenderException;
 import org.openmrs.util.OpenmrsConstants;
 import org.springframework.stereotype.Service;
-
-import sun.rmi.log.LogHandler;
-
-import javax.activation.DataHandler;
-import javax.xml.bind.JAXBException;
-
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.*;
 
 /**
  * XdsDocumentRepository Service Implementation
@@ -116,7 +140,9 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			log.error(e);
 			e.printStackTrace();
 			
+			
 			Context.clearSession(); // TODO: How to rollback everything?
+			
 			// Error response
 			RegistryResponseType response = new RegistryResponseType();
 			response.setStatus(XDSConstants.XDS_B_STATUS_FAILURE);
@@ -146,13 +172,19 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	 * @throws ParseException 
 	 * @throws JAXBException 
 	 * @throws PatientIdentifierException 
+	 * @throws ClassNotFoundException 
 	 */
-	protected String storeDocument(ExtrinsicObjectType eot, ProvideAndRegisterDocumentSetRequestType request) throws UnsupportedEncodingException, PatientIdentifierException, JAXBException, ParseException, UnsupportedGenderException {
+	protected String storeDocument(ExtrinsicObjectType eot, ProvideAndRegisterDocumentSetRequestType request) throws UnsupportedEncodingException, PatientIdentifierException, JAXBException, ParseException, UnsupportedGenderException, ClassNotFoundException {
+		
 		String docId = eot.getId();
 		Map<String, Document> docs = InfosetUtil.getDocuments(request);
 		Document document = docs.get(docId);
 		
 		String docUniqueId = InfosetUtil.getExternalIdentifierValue(XDSConstants.UUID_XDSDocumentEntry_uniqueId, eot);
+
+		// Do not store duplicates
+		if(Context.getService(XDSbService.class).getDocumentHandlerClass(docUniqueId) != null)
+			throw new RuntimeException(String.format("Document id %s is duplicate", docUniqueId));
 		
 		CodedValue typeCode = null;
 		CodedValue formatCode = null;
@@ -424,7 +456,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 		if (patients.size() > 1) {
 			throw new PatientIdentifierException("Multiple patients found for this identifier: " + patId + ", with id type: " + assigningAuthority);
 		} else if (patients.size() < 1) {
-			return ps.savePatient(createPatient(eo, patId, idType));
+			return ps.savePatient(this.createPatient(eo, patId, idType));
 		} else {
 			return patients.get(0);
 		}
@@ -484,6 +516,9 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 				log.warn("Found an unknown value in the sourcePatientInfo slot: " + val);
 			}
 		}
+		
+		if(pat.getGender() == null)
+			pat.setGender("U");
 		
 		return pat;
 	}

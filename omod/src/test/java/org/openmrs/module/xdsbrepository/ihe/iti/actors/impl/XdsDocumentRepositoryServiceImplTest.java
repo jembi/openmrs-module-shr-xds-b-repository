@@ -26,6 +26,7 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
+
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
@@ -225,9 +226,15 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 		List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
 		ExtrinsicObjectType eo = extrinsicObjects.get(0);
 		
-		String uniqueId = service.storeDocument(eo, request);
+		String uniqueId;
+		try {
+			uniqueId = service.storeDocument(eo, request);
+			assertEquals("2009.9.1.2455", uniqueId);
+		} catch (ClassNotFoundException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
 		
-		assertEquals("2009.9.1.2455", uniqueId);
 	}
 	
 	@SuppressWarnings("unchecked")
