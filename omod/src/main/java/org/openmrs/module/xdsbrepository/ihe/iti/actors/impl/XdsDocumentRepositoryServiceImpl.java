@@ -17,6 +17,7 @@ import org.dcm4chee.xds2.infoset.util.InfosetUtil;
 import org.openmrs.*;
 import org.openmrs.api.*;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.shr.atna.api.AtnaAuditService;
 import org.openmrs.module.shr.contenthandler.UnstructuredDataHandler;
 import org.openmrs.module.shr.contenthandler.api.CodedValue;
 import org.openmrs.module.shr.contenthandler.api.Content;
@@ -27,10 +28,12 @@ import org.openmrs.module.xdsbrepository.ihe.iti.actors.XdsDocumentRepositorySer
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.UnsupportedGenderException;
 import org.openmrs.util.OpenmrsConstants;
 import org.springframework.stereotype.Service;
+
 import sun.rmi.log.LogHandler;
 
 import javax.activation.DataHandler;
 import javax.xml.bind.JAXBException;
+
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.text.ParseException;
@@ -82,6 +85,13 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
     public RegistryResponseType provideAndRegisterDocumentSetB(ProvideAndRegisterDocumentSetRequestType request) {
 		
 		log.info("Start provideAndRegisterDocumentSetB");
+		boolean wasSuccess = true;
+
+		// Get the required elements for auditing
+		RegistryPackageType submissionSet = InfosetUtil.getRegistryPackage(request.getSubmitObjectsRequest(), XDSConstants.UUID_XDSSubmissionSet);
+		String submissionSetUID = InfosetUtil.getExternalIdentifierValue(XDSConstants.UUID_XDSSubmissionSet_uniqueId, submissionSet),
+				patID = InfosetUtil.getExternalIdentifierValue(XDSConstants.UUID_XDSSubmissionSet_patientId, submissionSet);
+		AuditRequestInfo info = new AuditRequestInfo(null, null);
 		
 		try	{
             if (!Context.isAuthenticated()) {
@@ -98,9 +108,10 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 
 			SubmitObjectsRequest submitObjectRequest = request.getSubmitObjectsRequest();
 			XDSbService xdsService = Context.getService(XDSbService.class);
-			
+			wasSuccess = true;
 			return xdsService.registerDocuments(contentHandlers, submitObjectRequest);
 		} catch (Exception e)	{
+			wasSuccess = false;
 			// Log the error
 			log.error(e);
 			e.printStackTrace();
@@ -119,6 +130,8 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			response.setRegistryErrorList(errorList);
 			return response;
 		} finally {
+        	XDSAudit.setAuditLogger(Context.getService(AtnaAuditService.class).getLogger());
+			XDSAudit.logRepositoryImport(submissionSetUID, patID, info, wasSuccess);
 			log.info("Stop provideAndRegisterDocumentSetB");
 			Context.closeSession();
 		}
@@ -551,10 +564,10 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
                         h = chs.getDefaultUnstructuredHandler();
                     }
                     content = h.fetchContent(docUid);
-
+                    
                     if ( content != null ) {
                         try {
-                            docRsp = getDocumentResponse(content, getRepositoryUniqueId());
+                            docRsp = getDocumentResponse(content, docUid, getRepositoryUniqueId());
                             rsp.getDocumentResponse().add(docRsp);
                             retrievedUIDs.add(docUid);
                         } catch (IOException e) {
@@ -604,10 +617,10 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
                         "Unexpected error in XDS service !: "+x.getMessage(),x));
             }
         } finally {
+        	XDSAudit.setAuditLogger(Context.getService(AtnaAuditService.class).getLogger());
+        	XDSAudit.logRepositoryRetrieveExport(req, rsp, new AuditRequestInfo(null, null));
             Context.closeSession();
         }
-        //AuditRequestInfo info = new AuditRequestInfo(LogHandler.getInboundSOAPHeader(), wsContext);
-        //XDSAudit.logRepositoryRetrieveExport(req, rsp, info);
         return rsp;
     }
 
@@ -615,10 +628,15 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
         return Context.getAdministrationService().getGlobalProperty(REPOSITORY_UNIQUE_ID_GP);
     }
 
-    private RetrieveDocumentSetResponseType.DocumentResponse getDocumentResponse(Content content, String repositoryUniqueId) throws IOException {
+    private RetrieveDocumentSetResponseType.DocumentResponse getDocumentResponse(Content content, String documentUniqueId, String repositoryUniqueId) throws IOException {
         RetrieveDocumentSetResponseType.DocumentResponse docRsp;
         docRsp = iheFactory.createRetrieveDocumentSetResponseTypeDocumentResponse();
-        docRsp.setDocumentUniqueId(content.getContentId());
+        docRsp.setDocumentUniqueId(documentUniqueId);
+        
+        // JF : HACK: New Document Unique Id if different
+        if(!content.getContentId().equals(documentUniqueId))
+        	docRsp.setNewDocumentUniqueId(content.getContentId());
+        
         docRsp.setMimeType(content.getContentType());
         docRsp.setRepositoryUniqueId(repositoryUniqueId);
         docRsp.setDocument(new DataHandler(content.getPayload(), content.getContentType()));

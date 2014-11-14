@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.openmrs.module</groupId>
 		<artifactId>xds-b-repository</artifactId>
-		<version>0.4.1</version>
+		<version>0.4.2</version>
 	</parent>
 
 	<artifactId>xds-b-repository-api</artifactId>
@@ -31,13 +31,34 @@
 			<type>jar</type>
   			<scope>provided</scope>
 		</dependency>
-		
+
+		<!-- Audit Handler  -->
+		<dependency>
+			<groupId>org.openmrs.module</groupId>
+			<artifactId>shr-atna-api</artifactId>
+			<version>0.5.0</version>
+			<type>jar</type>
+  			<scope>provided</scope>
+		</dependency>
+				
 		<!-- DCM4CHEE modules (for JAX-b classes and InfoSetUtil) -->
 		<dependency>
 			<groupId>org.dcm4che</groupId>
 			<artifactId>dcm4chee-xds2-infoset</artifactId>
 			<version>2.0.4-SNAPSHOT</version>
 		</dependency>
+        <!-- DCM4CHEE common module -->
+        <dependency>
+            <groupId>org.dcm4che</groupId>
+            <artifactId>dcm4chee-xds2-common</artifactId>
+            <version>2.0.4-SNAPSHOT</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.jboss.spec.javax.servlet</groupId>
+                    <artifactId>jboss-servlet-api_3.0_spec</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
 
 		<!-- Wiremock (devDependency) -->		
 		<dependency>
