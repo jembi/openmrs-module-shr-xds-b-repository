@@ -658,6 +658,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
             rsp.setRegistryResponse(regRsp);
 
         } catch (Exception x) {
+        	Context.clearSession(); 
             if (x instanceof XDSException) {
                 XDSUtil.addError(rsp, (XDSException) x);
             } else {
