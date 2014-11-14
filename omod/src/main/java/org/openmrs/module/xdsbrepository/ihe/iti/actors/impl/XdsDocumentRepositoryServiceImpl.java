@@ -1,21 +1,56 @@
 package org.openmrs.module.xdsbrepository.ihe.iti.actors.impl;
 
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.security.MessageDigest;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import javax.activation.DataHandler;
+import javax.xml.bind.DatatypeConverter;
+import javax.xml.bind.JAXBException;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.dcm4chee.xds2.common.XDSConstants;
 import org.dcm4chee.xds2.common.XDSUtil;
-import org.dcm4chee.xds2.common.audit.AuditRequestInfo;
-import org.dcm4chee.xds2.common.audit.XDSAudit;
 import org.dcm4chee.xds2.common.exception.XDSException;
 import org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType;
 import org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType.Document;
 import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetRequestType;
 import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetRequestType.DocumentRequest;
 import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetResponseType;
-import org.dcm4chee.xds2.infoset.rim.*;
+import org.dcm4chee.xds2.infoset.rim.ClassificationType;
+import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
+import org.dcm4chee.xds2.infoset.rim.ObjectFactory;
+import org.dcm4chee.xds2.infoset.rim.RegistryError;
+import org.dcm4chee.xds2.infoset.rim.RegistryErrorList;
+import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
+import org.dcm4chee.xds2.infoset.rim.SlotType1;
+import org.dcm4chee.xds2.infoset.rim.SubmitObjectsRequest;
+import org.dcm4chee.xds2.infoset.rim.ValueListType;
 import org.dcm4chee.xds2.infoset.util.InfosetUtil;
-import org.openmrs.*;
-import org.openmrs.api.*;
+import org.openmrs.EncounterRole;
+import org.openmrs.EncounterType;
+import org.openmrs.Patient;
+import org.openmrs.PatientIdentifier;
+import org.openmrs.PatientIdentifierType;
+import org.openmrs.PersonAddress;
+import org.openmrs.PersonName;
+import org.openmrs.Provider;
+import org.openmrs.api.AdministrationService;
+import org.openmrs.api.EncounterService;
+import org.openmrs.api.PatientIdentifierException;
+import org.openmrs.api.PatientService;
+import org.openmrs.api.ProviderService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.shr.contenthandler.UnstructuredDataHandler;
 import org.openmrs.module.shr.contenthandler.api.CodedValue;
@@ -29,19 +64,6 @@ import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.Unsuppor
 import org.openmrs.util.OpenmrsConstants;
 import org.springframework.stereotype.Service;
 
-import sun.rmi.log.LogHandler;
-
-import javax.activation.DataHandler;
-import javax.xml.bind.DatatypeConverter;
-import javax.xml.bind.JAXBException;
-
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.security.MessageDigest;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.*;
-
 /**
  * XdsDocumentRepository Service Implementation
  * 
@@ -54,6 +76,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
     private org.dcm4chee.xds2.infoset.ihe.ObjectFactory iheFactory = new org.dcm4chee.xds2.infoset.ihe.ObjectFactory();
 	
 	public static final String SLOT_NAME_HASH = "hash";
+	public static final String SLOT_NAME_SIZE = "size";
 	public static final String SLOT_NAME_AUTHOR_ROLE = "authorRole";
 	public static final String SLOT_NAME_AUTHOR_INSTITUTION = "authorInstitution";
 	public static final String SLOT_NAME_AUTHOR_SPECIALITY = "authorSpecialty";
@@ -173,6 +196,23 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 				digest.update(content.getRawData());
 				hashSlot.getValueList().getValue().add(DatatypeConverter.printBase64Binary(digest.digest()));
 				eot.getSlot().add(hashSlot);
+			}
+			catch(Exception e)
+			{
+				log.error(e);
+			}
+		}
+		// Same for slot
+		String sizeValue = InfosetUtil.getSlotValue(eot.getSlot(), SLOT_NAME_SIZE, null);
+		if(sizeValue == null)
+		{
+			SlotType1 sizeSlot = new SlotType1();
+			sizeSlot.setName(SLOT_NAME_SIZE);
+			sizeSlot.setValueList(new ValueListType());
+			try
+			{
+				sizeSlot.getValueList().getValue().add(String.format("%d", content.getRawData().length));
+				eot.getSlot().add(sizeSlot);
 			}
 			catch(Exception e)
 			{
