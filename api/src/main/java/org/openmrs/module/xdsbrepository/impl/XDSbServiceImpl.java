@@ -1,8 +1,12 @@
 package org.openmrs.module.xdsbrepository.impl;
 
+import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Map;
+
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.Marshaller;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -13,8 +17,16 @@ import org.dcm4chee.xds2.common.audit.AuditRequestInfo;
 import org.dcm4chee.xds2.common.audit.XDSAudit;
 import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
 import org.dcm4chee.xds2.infoset.rim.RegistryPackageType;
+import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
+import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
+import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
+import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
+import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
+import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
 import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
+import org.dcm4chee.xds2.infoset.rim.SlotType1;
 import org.dcm4chee.xds2.infoset.rim.SubmitObjectsRequest;
+import org.dcm4chee.xds2.infoset.rim.ValueListType;
 import org.dcm4chee.xds2.infoset.util.DocumentRegistryPortTypeFactory;
 import org.dcm4chee.xds2.infoset.util.InfosetUtil;
 import org.dcm4chee.xds2.infoset.ws.registry.DocumentRegistryPortType;
@@ -23,6 +35,7 @@ import org.openmrs.api.context.Context;
 import org.openmrs.module.shr.atna.api.AtnaAuditService;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
 import org.openmrs.module.xdsbrepository.XDSbService;
+import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
 import org.openmrs.module.xdsbrepository.db.XDSbDAO;
 import org.openmrs.module.xdsbrepository.exceptions.RegistryNotAvailableException;
 
@@ -30,8 +43,10 @@ public class XDSbServiceImpl implements XDSbService {
 	
 	protected final Log log = LogFactory.getLog(this.getClass());
 
-	public static final String XDS_REGISTRY_URL_GP = "xds-b-repository.xdsregistry.url";
-	
+
+	private static final String SLOT_NAME_REPOSITORY_UNIQUE_ID = "repositoryUniqueId";
+	private static final String ERROR_FAILURE = "urn:oasis:names:tc:ebxml-regrep:ResponseStatusType:Failure";
+
 	private XDSbDAO dao;
 
 	@Override
@@ -48,7 +63,7 @@ public class XDSbServiceImpl implements XDSbService {
 	 */
 	private URL getRegistryUrl() throws MalformedURLException {
 		AdministrationService as = Context.getAdministrationService();
-		String url = as.getGlobalProperty(XDS_REGISTRY_URL_GP);
+		String url = as.getGlobalProperty(XDSbServiceConstants.XDS_REGISTRY_URL_GP);
 
 		return new URL(url);
 	}
@@ -82,22 +97,33 @@ public class XDSbServiceImpl implements XDSbService {
 	* @throws Exception
 	*/
 	protected RegistryResponseType sendMetadataToRegistry(URL registryUrl, SubmitObjectsRequest submitObjectRequest) throws RegistryNotAvailableException {
+		
 		DocumentRegistryPortType port = DocumentRegistryPortTypeFactory.getDocumentRegistryPortSoap12(registryUrl.toString());
 		log.info("XDS.b: Send register document-b request to registry:" + registryUrl);
-		RegistryResponseType rsp;
-
 		// Auditing code
 		EventTypeCode eventTypeCode = EventTypeCode.ITI_42_RegisterDocumentSetB;
 		boolean wasSuccess = true;
 
-		// Auditing code 
 		
-		// Is this an ITI-61 and not ITI-42?
+		// JF: Fix meta-data issue
 		for(ExtrinsicObjectType eot : InfosetUtil.getExtrinsicObjects(submitObjectRequest))
 		{
 			if(!eot.getObjectType().equals(XDSConstants.UUID_XDSDocumentEntry))
 				eventTypeCode = new EventTypeCode("ITI-61", "IHE Transactions", "Register On-Demand Document Entry");
+
+			String repositoryUniqueId = InfosetUtil.getSlotValue(eot.getSlot(), SLOT_NAME_REPOSITORY_UNIQUE_ID, null);
+			if(repositoryUniqueId == null)
+			{
+				SlotType1 repositorySlot = new SlotType1();
+				repositorySlot.setName(SLOT_NAME_REPOSITORY_UNIQUE_ID);
+				repositorySlot.setValueList(new ValueListType());
+				repositorySlot.getValueList().getValue().add(Context.getAdministrationService().getGlobalProperty(XDSbServiceConstants.REPOSITORY_UNIQUE_ID_GP));
+				eot.getSlot().add(repositorySlot);
+			}
 		}
+				
+		RegistryResponseType rsp;
+
 		
 		// Get the required elements for auditing
 		RegistryPackageType submissionSet = InfosetUtil.getRegistryPackage(submitObjectRequest, XDSConstants.UUID_XDSSubmissionSet);

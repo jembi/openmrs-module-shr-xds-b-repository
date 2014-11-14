@@ -19,6 +19,7 @@ import org.openmrs.api.PatientService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.shr.contenthandler.api.*;
 import org.openmrs.module.xdsbrepository.XDSbService;
+import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.UnsupportedGenderException;
 import org.openmrs.test.BaseModuleContextSensitiveTest;
 
@@ -49,7 +50,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 
         AdministrationService as = Context.getAdministrationService();
 
-        GlobalProperty gp1 = new GlobalProperty(XdsDocumentRepositoryServiceImpl.REPOSITORY_UNIQUE_ID_GP, "1.19.6.24.109.42.1.5.1");
+        GlobalProperty gp1 = new GlobalProperty(XDSbServiceConstants.REPOSITORY_UNIQUE_ID_GP, "1.19.6.24.109.42.1.5.1");
         as.saveGlobalProperty(gp1);
 	}
 

@@ -1,6 +1,7 @@
 package org.openmrs.module.xdsbrepository.impl;
 
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
+
 import org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType;
 import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
 import org.junit.Before;
@@ -11,6 +12,7 @@ import org.openmrs.api.context.Context;
 import org.openmrs.module.shr.contenthandler.api.Content;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
 import org.openmrs.module.xdsbrepository.XDSbService;
+import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
 import org.openmrs.module.xdsbrepository.db.hibernate.HibernateXDSbDAO;
 import org.openmrs.module.xdsbrepository.exceptions.RegistryNotAvailableException;
 import org.openmrs.test.BaseModuleContextSensitiveTest;
@@ -19,6 +21,7 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
+
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.net.URL;
@@ -69,7 +72,7 @@ public class XDSbServiceTest extends BaseModuleContextSensitiveTest {
 
     @Before
     public void setup() {
-        GlobalProperty gp = new GlobalProperty(XDSbServiceImpl.XDS_REGISTRY_URL_GP, "http://localhost:8089/ws/xdsregistry");
+        GlobalProperty gp = new GlobalProperty(XDSbServiceConstants.XDS_REGISTRY_URL_GP, "http://localhost:8089/ws/xdsregistry");
         Context.getAdministrationService().saveGlobalProperty(gp);
     }
 
