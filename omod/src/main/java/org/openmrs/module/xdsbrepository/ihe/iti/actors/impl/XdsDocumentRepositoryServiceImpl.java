@@ -532,6 +532,8 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			pit = new PatientIdentifierType();
 			pit.setName(assigningAuthority);
 			pit.setDescription("Automatically created by OpenSHR XDS");
+			Context.getPatientService().savePatientIdentifierType(pit);
+			
 		}
 		
 		// Does the patient already have this identifier?
