@@ -41,7 +41,6 @@ public class XdsDocumentRepositoryEndpoint {
 	 * @return
 	 */
 	@Action("urn:ihe:iti:2007:ProvideAndRegisterDocumentSet-b")
-	@SoapAction("urn:ihe:iti:2007:ProvideAndRegisterDocumentSet-b")
 	@ResponsePayload
 	public JAXBElement<RegistryResponseType> provideAndRegisterDocumentSetB(@RequestPayload JAXBElement<ProvideAndRegisterDocumentSetRequestType> request)
 	{
@@ -57,7 +56,6 @@ public class XdsDocumentRepositoryEndpoint {
 	 * @return
 	 */
 	@Action("urn:ihe:iti:2007:RetrieveDocumentSet")
-	@SoapAction("urn:ihe:iti:2007:RetrieveDocumentSet")
 	@ResponsePayload
 	public JAXBElement<RetrieveDocumentSetResponseType> retrieveDocumentSetB(@RequestPayload JAXBElement<RetrieveDocumentSetRequestType> request)
 	{

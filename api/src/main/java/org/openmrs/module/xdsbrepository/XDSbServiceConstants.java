@@ -10,7 +10,9 @@ public class XDSbServiceConstants {
 	public static final String REPOSITORY_UNIQUE_ID_GP = "xds-b-repository.xdsrepository.uniqueId";
 	public static final String WS_USERNAME_GP = "xds-b-repository.ws.username";
 	public static final String WS_PASSWORD_GP = "xds-b-repository.ws.password";
-
+	public static final String XDS_REPOSITORY_AUTOCREATE_PATIENTS ="xds-b-repository.autoCreatePatients";
+	public static final String XDS_REPOSITORY_AUTOCREATE_PROVIDERS = "xds-b-repository.autoCreateProviders";
+	public static final String XDS_REPOSITORY_AUTOCREATE_LOCATIONS = "xds-b-repository.autoCreateLocations";	
 	 // JF: Severity 
 	public static final String SEVERITY_ERROR = "urn:oasis:names:tc:ebxml-regrep:ErrorSeverityType:Error"; 
 	public static final String SEVERITY_WARNING = "urn:oasis:names:tc:ebxml-regrep:ErrorSeverityType:Warning"; 

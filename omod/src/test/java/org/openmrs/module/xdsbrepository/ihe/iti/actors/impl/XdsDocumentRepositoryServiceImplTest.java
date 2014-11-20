@@ -1,32 +1,16 @@
 package org.openmrs.module.xdsbrepository.ihe.iti.actors.impl;
 
-import org.dcm4chee.xds2.common.XDSConstants;
-import org.dcm4chee.xds2.common.exception.XDSException;
-import org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType;
-import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetRequestType;
-import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetResponseType;
-import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
-import org.dcm4chee.xds2.infoset.rim.RegistryError;
-import org.dcm4chee.xds2.infoset.util.InfosetUtil;
-import org.junit.Before;
-import org.junit.Test;
-import org.mockito.Mock;
-import org.openmrs.*;
-import org.openmrs.api.AdministrationService;
-import org.openmrs.api.EncounterService;
-import org.openmrs.api.PatientIdentifierException;
-import org.openmrs.api.PatientService;
-import org.openmrs.api.context.Context;
-import org.openmrs.module.shr.contenthandler.api.*;
-import org.openmrs.module.xdsbrepository.XDSbService;
-import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
-import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.UnsupportedGenderException;
-import org.openmrs.test.BaseModuleContextSensitiveTest;
-
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBElement;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Unmarshaller;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.fail;
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import java.io.FileNotFoundException;
 import java.io.InputStream;
@@ -37,10 +21,44 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import static org.junit.Assert.*;
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.*;
+import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBElement;
+import javax.xml.bind.JAXBException;
+import javax.xml.bind.Unmarshaller;
+
+import org.dcm4chee.xds2.common.XDSConstants;
+import org.dcm4chee.xds2.common.exception.XDSException;
+import org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType;
+import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetRequestType;
+import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetResponseType;
+import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
+import org.dcm4chee.xds2.infoset.rim.RegistryError;
+import org.dcm4chee.xds2.infoset.util.InfosetUtil;
+import org.junit.Before;
+import org.junit.Test;
+import org.openmrs.EncounterRole;
+import org.openmrs.EncounterType;
+import org.openmrs.GlobalProperty;
+import org.openmrs.Patient;
+import org.openmrs.PatientIdentifierType;
+import org.openmrs.PersonAddress;
+import org.openmrs.Provider;
+import org.openmrs.api.AdministrationService;
+import org.openmrs.api.EncounterService;
+import org.openmrs.api.PatientIdentifierException;
+import org.openmrs.api.PatientService;
+import org.openmrs.api.context.Context;
+import org.openmrs.module.shr.contenthandler.api.AlreadyRegisteredException;
+import org.openmrs.module.shr.contenthandler.api.CodedValue;
+import org.openmrs.module.shr.contenthandler.api.Content;
+import org.openmrs.module.shr.contenthandler.api.ContentHandler;
+import org.openmrs.module.shr.contenthandler.api.ContentHandlerService;
+import org.openmrs.module.shr.contenthandler.api.InvalidCodedValueException;
+import org.openmrs.module.xdsbrepository.XDSbService;
+import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
+import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.UnknownPatientException;
+import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.UnsupportedGenderException;
+import org.openmrs.test.BaseModuleContextSensitiveTest;
 
 public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensitiveTest {
 
@@ -52,6 +70,8 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 
         GlobalProperty gp1 = new GlobalProperty(XDSbServiceConstants.REPOSITORY_UNIQUE_ID_GP, "1.19.6.24.109.42.1.5.1");
         as.saveGlobalProperty(gp1);
+        GlobalProperty gp2 = new GlobalProperty(XDSbServiceConstants.XDS_REPOSITORY_AUTOCREATE_PATIENTS, "true");
+        as.saveGlobalProperty(gp2);
 	}
 
     @SuppressWarnings("unchecked")
@@ -72,7 +92,10 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 		List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
 		ExtrinsicObjectType eo = extrinsicObjects.get(0);
 	
-		Patient pat = service.findOrCreatePatient(eo);
+		
+		Patient pat;
+		try {
+			pat = service.findOrCreatePatient(eo);
 		
 		// check patient was created correctly
 		assertNotNull(pat);
@@ -96,7 +119,14 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 		PatientService ps = Context.getPatientService();
 		PatientIdentifierType patientIdentifierType = ps.getPatientIdentifierTypeByName("1.2.4");
 		assertNotNull(patientIdentifierType);
-	}
+
+		} catch (UnknownPatientException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			fail();
+		}
+
+		}
 	
 	@Test
 	public void findOrCreatePatient_shouldFindAnExistingPatient() throws PatientIdentifierException, JAXBException, ParseException, UnsupportedGenderException, FileNotFoundException {
@@ -105,15 +135,22 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 		List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
 		ExtrinsicObjectType eo = extrinsicObjects.get(0);
 		
-		Patient pat = service.findOrCreatePatient(eo);
+		Patient pat;
+		try {
+			pat = service.findOrCreatePatient(eo);
 		
-		assertNotNull(pat);
-		assertEquals("F", pat.getGender());
-		
-		assertEquals("Jane", pat.getGivenName());
-		assertEquals("Doe", pat.getFamilyName());
-		// This is a name that only OpenMRS knows about
-		assertEquals("Sarah", pat.getMiddleName());
+			assertNotNull(pat);
+			assertEquals("F", pat.getGender());
+			
+			assertEquals("Jane", pat.getGivenName());
+			assertEquals("Doe", pat.getFamilyName());
+			// This is a name that only OpenMRS knows about
+			assertEquals("Sarah", pat.getMiddleName());
+		} catch (UnknownPatientException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			fail();
+		}
 	}
 	
 	@Test
@@ -129,6 +166,8 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 			fail("Should have thrown exception");
 		} catch (UnsupportedGenderException e) {
 			// expected
+		} catch (UnknownPatientException e) {
+			fail();
 		}
 	}
 	
@@ -234,6 +273,10 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 		} catch (ClassNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
+		} catch (UnknownPatientException e) {
+			// TODO Auto-generated catch block
+			e.printStackTrace();
+			fail();
 		}
 		
 	}

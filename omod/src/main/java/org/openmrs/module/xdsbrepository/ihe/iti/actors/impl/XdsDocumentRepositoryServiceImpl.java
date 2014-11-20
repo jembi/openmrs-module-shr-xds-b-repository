@@ -64,6 +64,7 @@ import org.openmrs.module.shr.contenthandler.api.ContentHandlerService;
 import org.openmrs.module.xdsbrepository.XDSbService;
 import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.XdsDocumentRepositoryService;
+import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.UnknownPatientException;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.UnsupportedGenderException;
 import org.openmrs.util.OpenmrsConstants;
 import org.springframework.stereotype.Service;
@@ -175,8 +176,9 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	 * @throws JAXBException 
 	 * @throws PatientIdentifierException 
 	 * @throws ClassNotFoundException 
+	 * @throws UnknownPatientException 
 	 */
-	protected String storeDocument(ExtrinsicObjectType eot, ProvideAndRegisterDocumentSetRequestType request) throws UnsupportedEncodingException, PatientIdentifierException, JAXBException, ParseException, UnsupportedGenderException, ClassNotFoundException {
+	protected String storeDocument(ExtrinsicObjectType eot, ProvideAndRegisterDocumentSetRequestType request) throws UnsupportedEncodingException, PatientIdentifierException, JAXBException, ParseException, UnsupportedGenderException, ClassNotFoundException, UnknownPatientException {
 		
 		String docId = eot.getId();
 		Map<String, Document> docs = InfosetUtil.getDocuments(request);
@@ -471,8 +473,9 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	 * @throws UnsupportedGenderException if the gender code is not supported by OpenMRS
 	 * @throws ParseException 
 	 * @throws JAXBException 
+	 * @throws UnknownPatientException 
 	 */
-	protected Patient findOrCreatePatient(ExtrinsicObjectType eo) throws PatientIdentifierException, JAXBException, ParseException, UnsupportedGenderException {
+	protected Patient findOrCreatePatient(ExtrinsicObjectType eo) throws PatientIdentifierException, JAXBException, ParseException, UnsupportedGenderException, UnknownPatientException {
 		String patCX = InfosetUtil.getExternalIdentifierValue(XDSConstants.UUID_XDSDocumentEntry_patientId, eo);
 		patCX.replaceAll("&amp;", "&");
 		String patId = patCX.substring(0, patCX.indexOf('^'));
@@ -491,14 +494,55 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 		}
 		
 		List<Patient> patients = ps.getPatients(null, patId, Collections.singletonList(idType), true);
+
+		Patient retVal = null;
 		
 		if (patients.size() > 1) {
 			throw new PatientIdentifierException("Multiple patients found for this identifier: " + patId + ", with id type: " + assigningAuthority);
 		} else if (patients.size() < 1) {
-			return ps.savePatient(this.createPatient(eo, patId, idType));
+			if(Context.getAdministrationService().getGlobalProperty(XDSbServiceConstants.XDS_REPOSITORY_AUTOCREATE_PATIENTS).equals("true"))
+				retVal = ps.savePatient(this.createPatient(eo, patId, idType));
+			else 
+				throw new UnknownPatientException(patCX);
 		} else {
-			return patients.get(0);
+			retVal = patients.get(0);
 		}
+		
+		this.addLocalIdentifierToPatient(eo, retVal);
+		return retVal;
+	}
+
+	/**
+	 * Add local identifier to the patient.
+	 * @param eo
+	 * @param retVal
+	 */
+	private void addLocalIdentifierToPatient(ExtrinsicObjectType eo,
+			Patient pat) {
+
+		String patCX = InfosetUtil.getSlotValue(eo.getSlot(), XDSConstants.SLOT_NAME_SOURCE_PATIENT_ID, null);
+		patCX.replaceAll("&amp;", "&");
+		String patId = patCX.substring(0, patCX.indexOf('^'));
+		String assigningAuthority = patCX.substring(patCX.indexOf('&') + 1, patCX.lastIndexOf('&'));
+
+		// Add the source identifier type if it does not exist!
+		PatientIdentifierType pit = Context.getPatientService().getPatientIdentifierTypeByName(assigningAuthority);
+		if(pit == null)
+		{
+			pit = new PatientIdentifierType();
+			pit.setName(assigningAuthority);
+			pit.setDescription("Automatically created by OpenSHR XDS");
+		}
+		
+		// Does the patient already have this identifier?
+		boolean hasId = false;
+		for(PatientIdentifier pid : pat.getIdentifiers())
+		{
+			hasId |= pid.getIdentifierType().equals(pit) && pid.getIdentifier().equals(patId);
+			if(hasId) break;
+		}
+		if(!hasId)
+			pat.addIdentifier(new PatientIdentifier(patId, pit, Context.getLocationService().getDefaultLocation()));
 	}
 
 	/**

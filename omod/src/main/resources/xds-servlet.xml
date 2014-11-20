@@ -35,7 +35,7 @@
 	</bean>
 
 	<bean id="loggingInterceptor"
-		class="org.springframework.ws.server.endpoint.interceptor.PayloadLoggingInterceptor" />
+		class="org.springframework.ws.soap.server.endpoint.interceptor.SoapEnvelopeLoggingInterceptor" />
 
 	<bean id="messageReceiver"
 		class="org.springframework.ws.soap.server.SoapMessageDispatcher">
@@ -75,6 +75,7 @@
 	</bean>
 
 	<sws:annotation-driven marshaller="marshaller" unmarshaller="marshaller"/>
+	
 	<!-- <sws:static-wsdl location="classpath:wsdl/DocumentRepository.wsdl"/> -->
 	
 	<context:component-scan base-package="org.openmrs.module.xdsbrepository.ihe.iti.actors" />

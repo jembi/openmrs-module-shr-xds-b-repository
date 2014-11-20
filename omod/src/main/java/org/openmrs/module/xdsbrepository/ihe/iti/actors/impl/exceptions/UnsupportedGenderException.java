@@ -1,6 +1,6 @@
 package org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions;
 
-public class UnsupportedGenderException extends Exception {
+public class UnsupportedGenderException extends XdsRepositoryException {
 	
 	private static final long serialVersionUID = 1L;
 
