@@ -661,6 +661,8 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
             String repositoryUID = getRepositoryUniqueId();
             String docUid, reqRepoUid;
             Content content;
+            for(DocumentRequest drq : req.getDocumentRequest())
+            	drq.setHomeCommunityId(Context.getAdministrationService().getGlobalProperty(XDSbServiceConstants.XDS_HOME_COMMUNITY_ID));
             RetrieveDocumentSetResponseType.DocumentResponse docRsp;
             List<String> retrievedUIDs = new ArrayList<String>();
             int requestCount = req.getDocumentRequest().size();

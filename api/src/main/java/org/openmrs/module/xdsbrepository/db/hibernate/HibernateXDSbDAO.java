@@ -7,6 +7,7 @@ import org.openmrs.module.shr.contenthandler.api.ContentHandler;
 import org.openmrs.module.xdsbrepository.model.DocHandlerMapping;
 import org.openmrs.module.xdsbrepository.db.XDSbDAO;
 
+
 public class HibernateXDSbDAO implements XDSbDAO {
 
     private SessionFactory sessionFactory;
@@ -18,6 +19,7 @@ public class HibernateXDSbDAO implements XDSbDAO {
 		docMap.setDocId(docId);
 		docMap.setHandlerClass(contentHandler.getName());
 		sessionFactory.getCurrentSession().save(docMap);
+		
 	}
 
 	@Override

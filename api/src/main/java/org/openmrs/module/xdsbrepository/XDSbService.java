@@ -7,7 +7,9 @@ import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
 import org.dcm4chee.xds2.infoset.rim.SubmitObjectsRequest;
 import org.openmrs.api.OpenmrsService;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
+import org.springframework.transaction.annotation.Transactional;
 
+@Transactional
 public interface XDSbService extends OpenmrsService {
 
     /**

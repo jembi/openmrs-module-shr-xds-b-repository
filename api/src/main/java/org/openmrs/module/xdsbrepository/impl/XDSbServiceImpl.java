@@ -32,14 +32,17 @@ import org.dcm4chee.xds2.infoset.util.InfosetUtil;
 import org.dcm4chee.xds2.infoset.ws.registry.DocumentRegistryPortType;
 import org.openmrs.api.AdministrationService;
 import org.openmrs.api.context.Context;
+import org.openmrs.api.impl.BaseOpenmrsService;
 import org.openmrs.module.shr.atna.api.AtnaAuditService;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
 import org.openmrs.module.xdsbrepository.XDSbService;
 import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
 import org.openmrs.module.xdsbrepository.db.XDSbDAO;
 import org.openmrs.module.xdsbrepository.exceptions.RegistryNotAvailableException;
+import org.springframework.transaction.annotation.Transactional;
 
-public class XDSbServiceImpl implements XDSbService {
+@Transactional
+public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 	
 	protected final Log log = LogFactory.getLog(this.getClass());
 
@@ -48,14 +51,6 @@ public class XDSbServiceImpl implements XDSbService {
 	private static final String ERROR_FAILURE = "urn:oasis:names:tc:ebxml-regrep:ResponseStatusType:Failure";
 
 	private XDSbDAO dao;
-
-	@Override
-	public void onShutdown() {
-	}
-
-	@Override
-	public void onStartup() {
-	}
 
 	/**
 	 * Get the URL of the registry
@@ -68,12 +63,14 @@ public class XDSbServiceImpl implements XDSbService {
 		return new URL(url);
 	}
 
+	@Transactional(readOnly = false)
 	@Override
 	public RegistryResponseType registerDocument(String uniqueId, Class<? extends ContentHandler> contentHandler, SubmitObjectsRequest submitObjectRequest) throws Exception {
 		dao.registerDocument(uniqueId, contentHandler);
 		return sendMetadataToRegistry(getRegistryUrl(), submitObjectRequest);
 	}
 
+	@Transactional(readOnly = false)
 	@Override
 	public RegistryResponseType registerDocuments(
 			Map<String, Class<? extends ContentHandler>> contentHandlers,
@@ -87,6 +84,7 @@ public class XDSbServiceImpl implements XDSbService {
 		return sendMetadataToRegistry(getRegistryUrl(), submitObjectRequest);
 	}
 
+	@Transactional(readOnly = true)
 	@Override
 	public Class<? extends ContentHandler> getDocumentHandlerClass(String documentUniqueId) throws ClassNotFoundException {
 		return dao.getDocumentHandlerClass(documentUniqueId);

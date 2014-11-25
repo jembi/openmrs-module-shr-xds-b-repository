@@ -18,6 +18,7 @@ public class XDSbServiceConstants {
 	public static final String SEVERITY_WARNING = "urn:oasis:names:tc:ebxml-regrep:ErrorSeverityType:Warning"; 
 	
 	// JF: Errors 
-	public static final String ERROR_XDS_REPOSITORY_ERROR = "XDSRepositoryError"; 
+	public static final String ERROR_XDS_REPOSITORY_ERROR = "XDSRepositoryError";
+	public static final String XDS_HOME_COMMUNITY_ID = "xds-b-repository.homeCommunityId"; 
 
 }
