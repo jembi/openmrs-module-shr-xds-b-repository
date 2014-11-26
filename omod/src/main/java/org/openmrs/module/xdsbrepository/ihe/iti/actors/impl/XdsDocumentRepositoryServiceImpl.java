@@ -605,6 +605,9 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 		if(pat.getGender() == null)
 			pat.setGender("U");
 		
+		if(pat.getNames().size() == 0)
+			pat.getNames().add(new PersonName("*", null, "*"));
+
 		return pat;
 	}
 
