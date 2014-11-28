@@ -58,6 +58,12 @@
 	<!-- /Internationalization -->
 	
 	<!-- Global properties -->
+	
+	<globalProperty>
+		<property>${project.parent.artifactId}.autoCreatePatients</property>
+		<defaultValue>false</defaultValue>
+		<description>When true XDS repository will auto-create patients.</description>
+	</globalProperty>
 	<globalProperty>
 		<property>${project.parent.artifactId}.ws.username</property>
 		<defaultValue>admin</defaultValue>

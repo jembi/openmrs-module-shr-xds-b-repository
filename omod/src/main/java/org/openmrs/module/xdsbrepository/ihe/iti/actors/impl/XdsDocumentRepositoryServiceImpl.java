@@ -101,7 +101,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 		
 		Context.openSession();
 		Context.authenticate(username, password);
-		this.log.error(OpenmrsConstants.DATABASE_NAME);
+		
     }
 		
 	/**
@@ -734,6 +734,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
             rsp.setRegistryResponse(regRsp);
 
         } catch (Exception x) {
+        	log.error(x);
         	Context.clearSession(); 
             if (x instanceof XDSException) {
                 XDSUtil.addError(rsp, (XDSException) x);
