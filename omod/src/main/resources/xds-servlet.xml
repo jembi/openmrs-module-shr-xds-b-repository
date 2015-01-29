@@ -76,8 +76,12 @@
 
 	<sws:annotation-driven marshaller="marshaller" unmarshaller="marshaller"/>
 	
-	<!-- <sws:static-wsdl location="classpath:wsdl/DocumentRepository.wsdl"/> -->
-	
+	<sws:static-wsdl location="classpath:wsdl/DocumentRepository.wsdl"/>
+
+  <sws:interceptors>
+    <bean class="org.springframework.ws.soap.server.endpoint.interceptor.SoapEnvelopeLoggingInterceptor"/>
+  </sws:interceptors>
+  	
 	<context:component-scan base-package="org.openmrs.module.xdsbrepository.ihe.iti.actors" />
 
 </beans>

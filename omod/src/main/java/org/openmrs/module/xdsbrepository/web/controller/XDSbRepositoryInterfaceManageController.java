@@ -33,4 +33,5 @@ public class  XDSbRepositoryInterfaceManageController {
 	public void manage(ModelMap model) {
 		model.addAttribute("user", Context.getAuthenticatedUser());
 	}
+
 }

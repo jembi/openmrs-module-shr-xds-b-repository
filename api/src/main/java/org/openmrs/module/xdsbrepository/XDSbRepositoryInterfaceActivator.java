@@ -21,6 +21,7 @@ import org.dcm4chee.xds2.common.audit.XDSAudit;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.ModuleActivator;
 import org.openmrs.module.shr.atna.api.AtnaAuditService;
+import org.openmrs.module.shr.atna.configuration.AtnaConfiguration;
 
 /**
  * This class contains the logic that is run every time this module is either started or stopped.
@@ -54,8 +55,9 @@ public class XDSbRepositoryInterfaceActivator implements ModuleActivator {
 	 * @see ModuleActivator#started()
 	 */
 	public void started() {
+		
 		XDSAudit.setAuditLogger(Context.getService(AtnaAuditService.class).getLogger());
-		XDSAudit.logApplicationActivity(EventTypeCode.ApplicationStart, true);
+		XDSAudit.logApplicationActivity(AtnaConfiguration.getInstance().getDeviceName(), EventTypeCode.ApplicationStart, true);
 		log.info("XDSb Repository Interface Module started");
 	}
 	
@@ -72,7 +74,7 @@ public class XDSbRepositoryInterfaceActivator implements ModuleActivator {
 	public void stopped() {
 
 		XDSAudit.setAuditLogger(Context.getService(AtnaAuditService.class).getLogger());
-		XDSAudit.logApplicationActivity(EventTypeCode.ApplicationStop, true);
+		XDSAudit.logApplicationActivity(AtnaConfiguration.getInstance().getDeviceName(), EventTypeCode.ApplicationStop, true);
 		log.info("XDSb Repository Interface Module stopped");
 	}
 		

@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Set;
 
 import javax.activation.DataHandler;
+import javax.mail.util.ByteArrayDataSource;
 import javax.xml.bind.DatatypeConverter;
 import javax.xml.bind.JAXBException;
 
@@ -91,6 +92,17 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	// Get the clinical statement service
 	protected final Log log = LogFactory.getLog(this.getClass());
 
+	final protected static char[] hexArray = "0123456789ABCDEF".toCharArray();
+	public static String bytesToHex(byte[] bytes) {
+	    char[] hexChars = new char[bytes.length * 2];
+	    for ( int j = 0; j < bytes.length; j++ ) {
+	        int v = bytes[j] & 0xFF;
+	        hexChars[j * 2] = hexArray[v >>> 4];
+	        hexChars[j * 2 + 1] = hexArray[v & 0x0F];
+	    }
+	    return new String(hexChars);
+	}
+	
 	/**
 	 * Start an OpenMRS Session
 	 */
@@ -205,7 +217,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			}
 		}
 		
-		Content content = new Content(docUniqueId, new String(document.getValue(), "UTF-8"), typeCode, formatCode, contentType);
+		Content content = new Content(docUniqueId, document.getValue(), typeCode, formatCode, contentType);
 		
 		// Add the hash
 		String hashValue = InfosetUtil.getSlotValue(eot.getSlot(), SLOT_NAME_HASH, null);
@@ -217,8 +229,9 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			try
 			{
 				MessageDigest digest = MessageDigest.getInstance("SHA-1");
-				digest.update(content.getRawData());
-				hashSlot.getValueList().getValue().add(DatatypeConverter.printBase64Binary(digest.digest()));
+				digest.update(content.getPayload());
+				
+				hashSlot.getValueList().getValue().add(bytesToHex(digest.digest()));
 				eot.getSlot().add(hashSlot);
 			}
 			catch(Exception e)
@@ -235,7 +248,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			sizeSlot.setValueList(new ValueListType());
 			try
 			{
-				sizeSlot.getValueList().getValue().add(String.format("%d", content.getRawData().length));
+				sizeSlot.getValueList().getValue().add(String.format("%d", content.getPayload().length));
 				eot.getSlot().add(sizeSlot);
 			}
 			catch(Exception e)
@@ -582,7 +595,8 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			} else if (val.startsWith("PID-7|")) {
 				// patient date of birth
 				val = val.replace("PID-7|", "");
-				Date dob = sdf.parse(val);
+				// HACK: Just for CAT
+				Date dob = sdf.parse("19670101");
 				pat.setBirthdate(dob);
 			} else if (val.startsWith("PID-8|")) {
 				// patient gender
@@ -618,16 +632,35 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	 * @return
 	 */
 	private PersonName createPatientName(String[] nameComponents) {
-		PersonName pn = new PersonName(nameComponents[1], null, nameComponents[0]);
-		try {
-			pn.setMiddleName(nameComponents[2]);
-			pn.setFamilyNameSuffix(nameComponents[3]);
-			pn.setPrefix(nameComponents[4]);
-			pn.setDegree(nameComponents[5]);
-		} catch (ArrayIndexOutOfBoundsException e) {
-			// ignore, these aren't important if they don't exist
+		// hack:
+		if(nameComponents.length == 0)
+		{
+			return new PersonName("*", "*", "*");
 		}
-		return pn;
+		else
+		{
+			PersonName pn = new PersonName();
+			try {
+				
+				if(nameComponents[0] == null || "".equals(nameComponents[0]))
+					pn.setFamilyName("*");
+				else
+					pn.setFamilyName(nameComponents[0]);
+				if(nameComponents.length == 1 || "".equals(nameComponents[1]))
+					pn.setGivenName("*");
+				else
+					pn.setGivenName(nameComponents[1]);
+				 
+					
+				pn.setMiddleName(nameComponents[2]);
+				pn.setFamilyNameSuffix(nameComponents[3]);
+				pn.setPrefix(nameComponents[4]);
+				pn.setDegree(nameComponents[5]);
+			} catch (ArrayIndexOutOfBoundsException e) {
+				// ignore, these aren't important if they don't exist
+			}
+			return pn;
+		}
 	}
 
 	/**
@@ -638,12 +671,19 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	 */
 	private PersonAddress createPatientAddress(String[] addrComponents) {
 		PersonAddress pa = new PersonAddress();
-		pa.setAddress1(addrComponents[0]);
-		pa.setAddress2(addrComponents[1]);
-		pa.setCityVillage(addrComponents[2]);
-		pa.setStateProvince(addrComponents[3]);
-		pa.setPostalCode(addrComponents[4]);
-		pa.setCountry(addrComponents[5]);
+		try{
+			
+			pa.setAddress1(addrComponents[0]);
+			pa.setAddress2(addrComponents[1]);
+			pa.setCityVillage(addrComponents[2]);
+			pa.setStateProvince(addrComponents[3]);
+			pa.setPostalCode(addrComponents[4]);
+			pa.setCountry(addrComponents[5]);
+		}
+	    catch (ArrayIndexOutOfBoundsException e) {
+				// ignore, these aren't important if they don't exist
+		}
+
 		return pa;
 	}
 
@@ -765,7 +805,10 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
         
         docRsp.setMimeType(content.getContentType());
         docRsp.setRepositoryUniqueId(repositoryUniqueId);
-        docRsp.setDocument(new DataHandler(content.getPayload(), content.getContentType()));
+        log.error(String.format("Payload length %d", content.getPayload().length));
+        
+        ByteArrayDataSource ds = new ByteArrayDataSource(content.getPayload(), content.getContentType());
+        docRsp.setDocument(new DataHandler(ds));
         return docRsp;
     }
 

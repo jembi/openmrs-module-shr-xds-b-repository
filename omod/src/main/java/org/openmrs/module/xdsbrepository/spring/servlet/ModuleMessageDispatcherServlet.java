@@ -28,7 +28,7 @@ public class ModuleMessageDispatcherServlet extends MessageDispatcherServlet {
     public void init(ServletConfig config) throws ServletException {
 	    // TODO Auto-generated method stub
 		super.setContextConfigLocation("classpath:xds-servlet.xml");
-		super.setTransformWsdlLocations(true);
+		super.setTransformWsdlLocations(false);
 	    super.init(new SpringFakeConfig(config.getServletName(), config.getServletContext()));
     }
 

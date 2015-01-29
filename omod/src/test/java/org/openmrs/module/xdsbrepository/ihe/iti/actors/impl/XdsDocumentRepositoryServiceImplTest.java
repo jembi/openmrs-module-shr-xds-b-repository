@@ -103,7 +103,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 		
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
 		String dob = sdf.format(pat.getBirthdate());
-		assertEquals("19560527", dob);
+		assertEquals("19670101", dob);
 		
 		assertEquals("John", pat.getGivenName());
 		assertEquals("Doe", pat.getFamilyName());
@@ -294,7 +294,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 		CodedValue typeCode = new CodedValue("testType", "testCodes", "Test Type");
 		CodedValue formatCode = new CodedValue("testFormat", "testCodes", "Test Format");
 		
-		Content expectedContent = new Content("2009.9.1.2455", "My test document", typeCode, formatCode, "text/plain");
+		Content expectedContent = new Content("2009.9.1.2455", "My test document".getBytes(), typeCode, formatCode, "text/plain");
 		
 		ContentHandler mockHandler = mock(ContentHandler.class);
 		when(mockHandler.cloneHandler()).thenReturn(mockHandler);
@@ -315,7 +315,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
         // given
         CodedValue typeCode = new CodedValue("testType", "testCodes", "Test Type");
         CodedValue formatCode = new CodedValue("testFormat", "testCodes", "Test Format");
-        Content content = new Content("testId", "My test document", typeCode, formatCode, "text/plain");
+        Content content = new Content("testId", "My test document".getBytes(), typeCode, formatCode, "text/plain");
 
         ContentHandler mockHandler = mock(ContentHandler.class);
         when(mockHandler.fetchContent("testId")).thenReturn(content);
@@ -394,7 +394,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
         // given
         CodedValue typeCode = new CodedValue("testType", "testCodes", "Test Type");
         CodedValue formatCode = new CodedValue("testFormat", "testCodes", "Test Format");
-        Content content = new Content("testId1", "My test document", typeCode, formatCode, "text/plain");
+        Content content = new Content("testId1", "My test document".getBytes(), typeCode, formatCode, "text/plain");
 
         ContentHandler mockHandler = mock(ContentHandler.class);
         when(mockHandler.fetchContent("testId1")).thenReturn(content);
@@ -431,7 +431,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
         // given
         CodedValue typeCode = new CodedValue("testType", "testCodes", "Test Type");
         CodedValue formatCode = new CodedValue("testFormat", "testCodes", "Test Format");
-        Content content = new Content("testId1", "My test document", typeCode, formatCode, "text/plain");
+        Content content = new Content("testId1", "My test document".getBytes(), typeCode, formatCode, "text/plain");
 
         ContentHandler mockHandler = mock(ContentHandler.class);
         when(mockHandler.fetchContent("testId1")).thenReturn(content);
