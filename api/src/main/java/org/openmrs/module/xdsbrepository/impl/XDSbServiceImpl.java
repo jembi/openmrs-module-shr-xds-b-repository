@@ -6,6 +6,7 @@ import java.net.URL;
 import java.util.Map;
 
 import javax.xml.bind.JAXBContext;
+import javax.xml.bind.JAXBException;
 import javax.xml.bind.Marshaller;
 
 import org.apache.commons.logging.Log;
@@ -109,15 +110,17 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 			if(!eot.getObjectType().equals(XDSConstants.UUID_XDSDocumentEntry))
 				eventTypeCode = new EventTypeCode("ITI-61", "IHE Transactions", "Register On-Demand Document Entry");
 
-			String repositoryUniqueId = InfosetUtil.getSlotValue(eot.getSlot(), SLOT_NAME_REPOSITORY_UNIQUE_ID, null);
-			if(repositoryUniqueId == null)
-			{
-				SlotType1 repositorySlot = new SlotType1();
-				repositorySlot.setName(SLOT_NAME_REPOSITORY_UNIQUE_ID);
-				repositorySlot.setValueList(new ValueListType());
-				repositorySlot.getValueList().getValue().add(Context.getAdministrationService().getGlobalProperty(XDSbServiceConstants.REPOSITORY_UNIQUE_ID_GP));
-				eot.getSlot().add(repositorySlot);
+			try {
+				InfosetUtil.addOrOverwriteSlot(eot, SLOT_NAME_REPOSITORY_UNIQUE_ID, Context.getAdministrationService().getGlobalProperty(XDSbServiceConstants.REPOSITORY_UNIQUE_ID_GP));
+			} catch (JAXBException e) {
+				e.printStackTrace();
 			}
+
+			//SlotType1 repositorySlot = new SlotType1();
+			//repositorySlot.setName(SLOT_NAME_REPOSITORY_UNIQUE_ID);
+			//repositorySlot.setValueList(new ValueListType());
+			//repositorySlot.getValueList().getValue().add(Context.getAdministrationService().getGlobalProperty(XDSbServiceConstants.REPOSITORY_UNIQUE_ID_GP));
+			//eot.getSlot().add(repositorySlot);
 		}
 				
 		RegistryResponseType rsp;
