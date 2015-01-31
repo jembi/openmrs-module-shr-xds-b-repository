@@ -139,16 +139,28 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			
 			List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
 
-			// Save each document
-			Map<String, Class<? extends ContentHandler>> contentHandlers = new HashMap<String, Class<? extends ContentHandler>>();
-			for(ExtrinsicObjectType eot : extrinsicObjects) {
-				contentHandlers.put(this.storeDocument(eot, request), UnstructuredDataHandler.class);
-			}
-
 			SubmitObjectsRequest submitObjectRequest = request.getSubmitObjectsRequest();
 			XDSbService xdsService = Context.getService(XDSbService.class);
 			wasSuccess = true;
-			return xdsService.registerDocuments(contentHandlers, submitObjectRequest);
+			
+			Map<String, Class<? extends ContentHandler>> contentHandlers = new HashMap<String, Class<? extends ContentHandler>>();
+			for(ExtrinsicObjectType eot : extrinsicObjects) {
+				//String docUniqueId = InfosetUtil.getExternalIdentifierValue(XDSConstants.UUID_XDSDocumentEntry_uniqueId, eot);
+				contentHandlers.put(this.processDocumentMetaData(eot, request), UnstructuredDataHandler.class);
+				//contentHandlers.put(docUniqueId, UnstructuredDataHandler.class);
+			}
+
+			RegistryResponseType retVal = xdsService.registerDocuments(contentHandlers, submitObjectRequest);
+
+			// Save each document
+			if(retVal.getStatus().equals(XDSConstants.XDS_B_STATUS_SUCCESS))
+			{
+				for(ExtrinsicObjectType eot : extrinsicObjects) {
+					contentHandlers.put(this.storeDocument(eot, request), UnstructuredDataHandler.class);
+				}
+			}
+			return retVal;
+
 		} catch (Exception e)	{
 			wasSuccess = false;
 			// Log the error
@@ -164,7 +176,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			RegistryErrorList errorList = new RegistryErrorList();
 			errorList.setHighestSeverity(XDSbServiceConstants.SEVERITY_ERROR);
 			RegistryError error = new RegistryError();
-			error.setErrorCode(XDSbServiceConstants.ERROR_XDS_REPOSITORY_ERROR);
+			error.setErrorCode("XDSRegistryNotAvailable");
 			error.setCodeContext(e.getMessage());
 			error.setSeverity(XDSbServiceConstants.SEVERITY_ERROR);
 			errorList.getRegistryError().add(error);
@@ -191,6 +203,61 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	 * @throws UnknownPatientException 
 	 */
 	protected String storeDocument(ExtrinsicObjectType eot, ProvideAndRegisterDocumentSetRequestType request) throws UnsupportedEncodingException, PatientIdentifierException, JAXBException, ParseException, UnsupportedGenderException, ClassNotFoundException, UnknownPatientException {
+		
+		String docId = eot.getId();
+		Map<String, Document> docs = InfosetUtil.getDocuments(request);
+		Document document = docs.get(docId);
+		
+		String docUniqueId = InfosetUtil.getExternalIdentifierValue(XDSConstants.UUID_XDSDocumentEntry_uniqueId, eot);
+
+		// Do not store duplicates
+		
+		CodedValue typeCode = null;
+		CodedValue formatCode = null;
+		String contentType = eot.getMimeType();
+		List<ClassificationType> classificationList = eot.getClassification();
+		for (ClassificationType ct : classificationList) {
+			if (ct.getClassificationScheme().equals(XDSConstants.UUID_XDSDocumentEntry_typeCode)) {
+				String codingScheme = InfosetUtil.getSlotValue(ct.getSlot(), SLOT_NAME_CODING_SCHEME, null);
+				typeCode = new CodedValue(ct.getNodeRepresentation(), codingScheme);
+			}
+			if (ct.getClassificationScheme().equals(XDSConstants.UUID_XDSDocumentEntry_formatCode)) {
+				String codingScheme = InfosetUtil.getSlotValue(ct.getSlot(), SLOT_NAME_CODING_SCHEME, null);
+				formatCode = new CodedValue(ct.getNodeRepresentation(), codingScheme);
+			}
+		}
+		
+		Content content = new Content(docUniqueId, document.getValue(), typeCode, formatCode, contentType);
+		ContentHandlerService chs = Context.getService(ContentHandlerService.class);
+		ContentHandler defaultHandler = chs.getDefaultUnstructuredHandler();
+		ContentHandler discreteHandler = chs.getContentHandler(typeCode, formatCode);
+		
+		Patient patient = findOrCreatePatient(eot);
+		Map<EncounterRole, Set<Provider>> providersByRole = findOrCreateProvidersByRole(eot);
+		EncounterType encounterType = findOrCreateEncounterType(eot);
+		
+		// always send to the default unstructured data handler
+		defaultHandler.saveContent(patient, providersByRole, encounterType, content);
+		// If another handler exists send to that as well
+		if (discreteHandler != null) {
+			discreteHandler.saveContent(patient, providersByRole, encounterType, content);
+		}
+		
+	    return docUniqueId;
+    }
+
+	/**
+	 * Store a document and return its UUID
+	 * 
+	 * @throws UnsupportedEncodingException 
+	 * @throws UnsupportedGenderException 
+	 * @throws ParseException 
+	 * @throws JAXBException 
+	 * @throws PatientIdentifierException 
+	 * @throws ClassNotFoundException 
+	 * @throws UnknownPatientException 
+	 */
+	protected String processDocumentMetaData(ExtrinsicObjectType eot, ProvideAndRegisterDocumentSetRequestType request) throws UnsupportedEncodingException, PatientIdentifierException, JAXBException, ParseException, UnsupportedGenderException, ClassNotFoundException, UnknownPatientException {
 		
 		String docId = eot.getId();
 		Map<String, Document> docs = InfosetUtil.getDocuments(request);
@@ -255,21 +322,6 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			{
 				log.error(e);
 			}
-		}
-		
-		ContentHandlerService chs = Context.getService(ContentHandlerService.class);
-		ContentHandler defaultHandler = chs.getDefaultUnstructuredHandler();
-		ContentHandler discreteHandler = chs.getContentHandler(typeCode, formatCode);
-		
-		Patient patient = findOrCreatePatient(eot);
-		Map<EncounterRole, Set<Provider>> providersByRole = findOrCreateProvidersByRole(eot);
-		EncounterType encounterType = findOrCreateEncounterType(eot);
-		
-		// always send to the default unstructured data handler
-		defaultHandler.saveContent(patient, providersByRole, encounterType, content);
-		// If another handler exists send to that as well
-		if (discreteHandler != null) {
-			discreteHandler.saveContent(patient, providersByRole, encounterType, content);
 		}
 		
 	    return docUniqueId;

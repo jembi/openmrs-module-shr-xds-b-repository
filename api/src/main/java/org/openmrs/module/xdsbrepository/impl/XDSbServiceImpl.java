@@ -77,12 +77,18 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 			Map<String, Class<? extends ContentHandler>> contentHandlers,
 			SubmitObjectsRequest submitObjectRequest) throws Exception {
 		
-		for (String id : contentHandlers.keySet()) {
-			Class<? extends ContentHandler> contentHandler = contentHandlers.get(id);
-			dao.registerDocument(id, contentHandler);
-		}
+		
 
-		return sendMetadataToRegistry(getRegistryUrl(), submitObjectRequest);
+		RegistryResponseType retVal = sendMetadataToRegistry(getRegistryUrl(), submitObjectRequest);
+
+		if(retVal.getStatus().equals(XDSConstants.XDS_B_STATUS_SUCCESS))
+		{
+			for (String id : contentHandlers.keySet()) {
+				Class<? extends ContentHandler> contentHandler = contentHandlers.get(id);
+				dao.registerDocument(id, contentHandler);
+			}
+		}
+		return retVal;
 	}
 
 	@Transactional(readOnly = true)
