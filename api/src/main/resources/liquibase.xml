@@ -29,5 +29,13 @@
 	        <column name="doc_id" type="varchar(255)"/>
 	    </createIndex>
     </changeSet>
+
+    <changeSet id="xdsbrepository-2015-02-20-13:02" author="rcrichton">
+        <modifyColumn tableName="xdsbrepository_dochandlers">
+            <column name="doc_id" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+        </modifyColumn>
+    </changeSet>
  
 </databaseChangeLog>
