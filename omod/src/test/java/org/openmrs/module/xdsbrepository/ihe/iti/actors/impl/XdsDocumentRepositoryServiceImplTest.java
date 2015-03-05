@@ -72,6 +72,8 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
         as.saveGlobalProperty(gp1);
         GlobalProperty gp2 = new GlobalProperty(XDSbServiceConstants.XDS_REPOSITORY_AUTOCREATE_PATIENTS, "true");
         as.saveGlobalProperty(gp2);
+        GlobalProperty gp3 = new GlobalProperty("shr.contenthandler.cacheConceptsByName", "false");
+        as.saveGlobalProperty(gp3);
 	}
 
     @SuppressWarnings("unchecked")
