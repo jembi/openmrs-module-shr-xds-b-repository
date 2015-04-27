@@ -648,7 +648,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 				// patient date of birth
 				val = val.replace("PID-7|", "");
 				// HACK: Just for CAT
-				Date dob = sdf.parse("19670101");
+				Date dob = sdf.parse(val);
 				pat.setBirthdate(dob);
 			} else if (val.startsWith("PID-8|")) {
 				// patient gender
