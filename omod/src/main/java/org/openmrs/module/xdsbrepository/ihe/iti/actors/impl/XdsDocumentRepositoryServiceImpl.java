@@ -647,7 +647,6 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			} else if (val.startsWith("PID-7|")) {
 				// patient date of birth
 				val = val.replace("PID-7|", "");
-				// HACK: Just for CAT
 				Date dob = sdf.parse(val);
 				pat.setBirthdate(dob);
 			} else if (val.startsWith("PID-8|")) {
@@ -684,26 +683,24 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 	 * @return
 	 */
 	private PersonName createPatientName(String[] nameComponents) {
-		// hack:
-		if(nameComponents.length == 0)
-		{
+		if (nameComponents == null || nameComponents.length == 0) {
 			return new PersonName("*", "*", "*");
-		}
-		else
-		{
+		} else {
 			PersonName pn = new PersonName();
+
+			if (nameComponents[0] == null || "".equals(nameComponents[0])) {
+				pn.setFamilyName("*");
+			} else {
+				pn.setFamilyName(nameComponents[0]);
+			}
+
+			if (nameComponents.length == 1 || "".equals(nameComponents[1])) {
+				pn.setGivenName("*");
+			} else {
+				pn.setGivenName(nameComponents[1]);
+			}
+
 			try {
-				
-				if(nameComponents[0] == null || "".equals(nameComponents[0]))
-					pn.setFamilyName("*");
-				else
-					pn.setFamilyName(nameComponents[0]);
-				if(nameComponents.length == 1 || "".equals(nameComponents[1]))
-					pn.setGivenName("*");
-				else
-					pn.setGivenName(nameComponents[1]);
-				 
-					
 				pn.setMiddleName(nameComponents[2]);
 				pn.setFamilyNameSuffix(nameComponents[3]);
 				pn.setPrefix(nameComponents[4]);
@@ -711,6 +708,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 			} catch (ArrayIndexOutOfBoundsException e) {
 				// ignore, these aren't important if they don't exist
 			}
+
 			return pn;
 		}
 	}

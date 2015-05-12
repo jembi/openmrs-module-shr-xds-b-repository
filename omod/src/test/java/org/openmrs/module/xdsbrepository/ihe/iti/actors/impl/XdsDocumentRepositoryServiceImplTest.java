@@ -105,7 +105,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 		
 		SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
 		String dob = sdf.format(pat.getBirthdate());
-		assertEquals("19670101", dob);
+		assertEquals("19560527", dob);
 		
 		assertEquals("John", pat.getGivenName());
 		assertEquals("Doe", pat.getFamilyName());
