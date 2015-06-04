@@ -179,53 +179,6 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
     /**
      * Store a document and return its UUID
      */
-    protected String storeDocument(ExtrinsicObjectType eot, ProvideAndRegisterDocumentSetRequestType request) throws JAXBException, UnsupportedGenderException, XDSException {
-
-        String docId = eot.getId();
-        Map<String, Document> docs = InfosetUtil.getDocuments(request);
-        Document document = docs.get(docId);
-
-        String docUniqueId = InfosetUtil.getExternalIdentifierValue(XDSConstants.UUID_XDSDocumentEntry_uniqueId, eot);
-
-        // Do not store duplicates
-
-        CodedValue typeCode = null;
-        CodedValue formatCode = null;
-        String contentType = eot.getMimeType();
-        List<ClassificationType> classificationList = eot.getClassification();
-        for (ClassificationType ct : classificationList) {
-            if (ct.getClassificationScheme().equals(XDSConstants.UUID_XDSDocumentEntry_typeCode)) {
-                String codingScheme = InfosetUtil.getSlotValue(ct.getSlot(), SLOT_NAME_CODING_SCHEME, null);
-                typeCode = new CodedValue(ct.getNodeRepresentation(), codingScheme);
-            }
-            if (ct.getClassificationScheme().equals(XDSConstants.UUID_XDSDocumentEntry_formatCode)) {
-                String codingScheme = InfosetUtil.getSlotValue(ct.getSlot(), SLOT_NAME_CODING_SCHEME, null);
-                formatCode = new CodedValue(ct.getNodeRepresentation(), codingScheme);
-            }
-        }
-
-        Content content = new Content(docUniqueId, document.getValue(), typeCode, formatCode, contentType);
-        ContentHandlerService chs = Context.getService(ContentHandlerService.class);
-        ContentHandler defaultHandler = chs.getDefaultUnstructuredHandler();
-        ContentHandler discreteHandler = chs.getContentHandler(typeCode, formatCode);
-
-        Patient patient = findOrCreatePatient(eot);
-        Map<EncounterRole, Set<Provider>> providersByRole = findOrCreateProvidersByRole(eot);
-        EncounterType encounterType = findOrCreateEncounterType(eot);
-
-        // always send to the default unstructured data handler
-        defaultHandler.saveContent(patient, providersByRole, encounterType, content);
-        // If another handler exists send to that as well
-        if (discreteHandler != null) {
-            discreteHandler.saveContent(patient, providersByRole, encounterType, content);
-        }
-
-        return docUniqueId;
-    }
-
-    /**
-     * Store a document and return its UUID
-     */
     protected String processDocumentMetaData(ExtrinsicObjectType eot, ProvideAndRegisterDocumentSetRequestType request) throws XDSException {
 
         validateMetadata(eot);
@@ -340,6 +293,54 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
             sizeSlot.getValueList().getValue().add(String.format("%d", content.getPayload().length));
             eot.getSlot().add(sizeSlot);
         }
+    }
+
+    
+    /**
+     * Store a document and return its UUID
+     */
+    protected String storeDocument(ExtrinsicObjectType eot, ProvideAndRegisterDocumentSetRequestType request) throws JAXBException, UnsupportedGenderException, XDSException {
+
+        String docId = eot.getId();
+        Map<String, Document> docs = InfosetUtil.getDocuments(request);
+        Document document = docs.get(docId);
+
+        String docUniqueId = InfosetUtil.getExternalIdentifierValue(XDSConstants.UUID_XDSDocumentEntry_uniqueId, eot);
+
+        // Do not store duplicates
+
+        CodedValue typeCode = null;
+        CodedValue formatCode = null;
+        String contentType = eot.getMimeType();
+        List<ClassificationType> classificationList = eot.getClassification();
+        for (ClassificationType ct : classificationList) {
+            if (ct.getClassificationScheme().equals(XDSConstants.UUID_XDSDocumentEntry_typeCode)) {
+                String codingScheme = InfosetUtil.getSlotValue(ct.getSlot(), SLOT_NAME_CODING_SCHEME, null);
+                typeCode = new CodedValue(ct.getNodeRepresentation(), codingScheme);
+            }
+            if (ct.getClassificationScheme().equals(XDSConstants.UUID_XDSDocumentEntry_formatCode)) {
+                String codingScheme = InfosetUtil.getSlotValue(ct.getSlot(), SLOT_NAME_CODING_SCHEME, null);
+                formatCode = new CodedValue(ct.getNodeRepresentation(), codingScheme);
+            }
+        }
+
+        Content content = new Content(docUniqueId, document.getValue(), typeCode, formatCode, contentType);
+        ContentHandlerService chs = Context.getService(ContentHandlerService.class);
+        ContentHandler defaultHandler = chs.getDefaultUnstructuredHandler();
+        ContentHandler discreteHandler = chs.getContentHandler(typeCode, formatCode);
+
+        Patient patient = findOrCreatePatient(eot);
+        Map<EncounterRole, Set<Provider>> providersByRole = findOrCreateProvidersByRole(eot);
+        EncounterType encounterType = findOrCreateEncounterType(eot);
+
+        // always send to the default unstructured data handler
+        defaultHandler.saveContent(patient, providersByRole, encounterType, content);
+        // If another handler exists send to that as well
+        if (discreteHandler != null) {
+            discreteHandler.saveContent(patient, providersByRole, encounterType, content);
+        }
+
+        return docUniqueId;
     }
 
     /**
