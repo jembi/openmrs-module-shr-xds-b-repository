@@ -1,7 +1,7 @@
 package org.openmrs.module.xdsbrepository.impl;
 
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
-
+import org.dcm4chee.xds2.common.exception.XDSException;
 import org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType;
 import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
 import org.junit.Before;
@@ -13,15 +13,12 @@ import org.openmrs.module.shr.contenthandler.api.Content;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
 import org.openmrs.module.xdsbrepository.XDSbService;
 import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
-import org.openmrs.module.xdsbrepository.db.hibernate.HibernateXDSbDAO;
-import org.openmrs.module.xdsbrepository.exceptions.RegistryNotAvailableException;
 import org.openmrs.test.BaseModuleContextSensitiveTest;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.JAXBException;
 import javax.xml.bind.Unmarshaller;
-
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.net.URL;
@@ -30,10 +27,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.fail;
-import static org.mockito.Mockito.mock;
+import static org.junit.Assert.*;
 import static org.springframework.util.Assert.notNull;
 
 public class XDSbServiceTest extends BaseModuleContextSensitiveTest {
@@ -100,8 +94,12 @@ public class XDSbServiceTest extends BaseModuleContextSensitiveTest {
 		try {
 			service.sendMetadataToRegistry(new URL("http://localhost:9999/ws/xdsregistry"), request.getSubmitObjectsRequest());
 			fail("Expected an exception");
-		} catch (RegistryNotAvailableException e) {
+		} catch (XDSException e) {
 			// expected
+
+            if (!e.getErrorCode().equals(XDSException.XDS_ERR_REG_NOT_AVAIL)) {
+                fail();
+            }
 		}
 	}
 
