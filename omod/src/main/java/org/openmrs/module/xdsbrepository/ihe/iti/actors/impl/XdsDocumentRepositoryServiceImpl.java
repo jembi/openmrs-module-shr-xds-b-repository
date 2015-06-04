@@ -253,13 +253,17 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
             throw new XDSException(XDSException.XDS_ERR_REPOSITORY_METADATA_ERROR, "DocumentEntry classCode not specified", null);
         }
 
-        if (InfosetUtil.getExternalIdentifierValue(XDSConstants.UUID_XDSDocumentEntry_patientId, eot) == null) {
+        String id = InfosetUtil.getExternalIdentifierValue(XDSConstants.UUID_XDSDocumentEntry_patientId, eot);
+        if (id == null) {
             throw new XDSException(XDSException.XDS_ERR_REPOSITORY_METADATA_ERROR, "DocumentEntry patientId not specified", null);
         }
+        parsePatientIdentifier(id);
 
-        if (InfosetUtil.getSlotValue(eot.getSlot(), XDSConstants.SLOT_NAME_SOURCE_PATIENT_ID, null) == null) {
+        id = InfosetUtil.getSlotValue(eot.getSlot(), XDSConstants.SLOT_NAME_SOURCE_PATIENT_ID, null);
+        if (id == null) {
             throw new XDSException(XDSException.XDS_ERR_REPOSITORY_METADATA_ERROR, "Source patientId not specified", null);
         }
+        parsePatientIdentifier(id);
     }
 
     protected String getDocumentUniqueId(ExtrinsicObjectType eot) throws XDSException {
