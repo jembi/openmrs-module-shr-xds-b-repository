@@ -438,4 +438,47 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
         assertEquals(XDSConstants.XDS_B_STATUS_PARTIAL_SUCCESS, response.getRegistryResponse().getStatus());
     }
 
+    @Test
+    public void validateMetadata_shouldDoNothingWhenDocumentValid() throws Exception {
+        XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
+        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest1.xml");
+        List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+        ExtrinsicObjectType eo = extrinsicObjects.get(0);
+
+        service.validateMetadata(eo);
+    }
+
+    private void testValidateMetadata(String testDocument) throws Exception {
+        XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
+        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName(testDocument);
+        List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+        ExtrinsicObjectType eo = extrinsicObjects.get(0);
+
+        try {
+            service.validateMetadata(eo);
+            fail("Failed to throw XDSException");
+        } catch (XDSException ex) {
+            //expected
+        }
+    }
+
+    @Test
+    public void validateMetadata_shouldRejectWhenNoUniqueId() throws Exception {
+        testValidateMetadata("provideAndRegRequest_noUniqueId.xml");
+    }
+
+    @Test
+    public void validateMetadata_shouldRejectWhenNoClassCode() throws Exception {
+        testValidateMetadata("provideAndRegRequest_noClassCode.xml");
+    }
+
+    @Test
+    public void validateMetadata_shouldRejectWhenNoDocumentEntryPatientId() throws Exception {
+        testValidateMetadata("provideAndRegRequest_noDocumentEntryPatientId.xml");
+    }
+
+    @Test
+    public void validateMetadata_shouldRejectWhenNoSourcePatientId() throws Exception {
+        testValidateMetadata("provideAndRegRequest_noSourcePatientId.xml");
+    }
 }
