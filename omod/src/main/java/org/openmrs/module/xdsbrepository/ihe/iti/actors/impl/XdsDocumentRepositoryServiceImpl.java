@@ -125,7 +125,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
     public RegistryResponseType provideAndRegisterDocumentSetB(ProvideAndRegisterDocumentSetRequestType request) {
 
         log.info("Start provideAndRegisterDocumentSetB");
-        boolean wasSuccess = true;
+        boolean wasSuccess = false;
 
         // Get the required elements for auditing
         RegistryPackageType submissionSet = InfosetUtil.getRegistryPackage(request.getSubmitObjectsRequest(), XDSConstants.UUID_XDSSubmissionSet);
@@ -144,7 +144,6 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 
             SubmitObjectsRequest submitObjectRequest = request.getSubmitObjectsRequest();
             XDSbService xdsService = Context.getService(XDSbService.class);
-            wasSuccess = true;
 
             Map<String, Class<? extends ContentHandler>> contentHandlers = new HashMap<String, Class<? extends ContentHandler>>();
             for (ExtrinsicObjectType eot : extrinsicObjects) {
@@ -159,6 +158,8 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
                     contentHandlers.put(this.storeDocument(eot, request), UnstructuredDataHandler.class);
                 }
             }
+
+            wasSuccess = true;
 
         } catch (Exception e) {
             processExceptionForResponse(response, e);
@@ -295,7 +296,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
         }
     }
 
-    
+
     /**
      * Store a document and return its UUID
      */
@@ -306,8 +307,6 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
         Document document = docs.get(docId);
 
         String docUniqueId = InfosetUtil.getExternalIdentifierValue(XDSConstants.UUID_XDSDocumentEntry_uniqueId, eot);
-
-        // Do not store duplicates
 
         CodedValue typeCode = null;
         CodedValue formatCode = null;

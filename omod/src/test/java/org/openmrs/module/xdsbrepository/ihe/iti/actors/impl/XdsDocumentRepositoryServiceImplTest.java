@@ -173,6 +173,11 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
     }
 
     @Test
+    public void findOrCreatePatient_shouldThrowXDSExceptionIfPatientIdHasNoAssigningAuthority2() throws Exception {
+        testFindOrCreatePatientWithPatientId("12345^^^^stuff");
+    }
+
+    @Test
     public void findOrCreatePatient_shouldThrowXDSExceptionIfPatientIdEmpty() throws Exception {
         testFindOrCreatePatientWithPatientId("^^^&1.2.3.4.5&ISO");
     }
