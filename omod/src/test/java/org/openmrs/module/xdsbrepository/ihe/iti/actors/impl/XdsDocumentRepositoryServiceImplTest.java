@@ -56,7 +56,6 @@ import org.openmrs.module.shr.contenthandler.api.ContentHandlerService;
 import org.openmrs.module.shr.contenthandler.api.InvalidCodedValueException;
 import org.openmrs.module.xdsbrepository.XDSbService;
 import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
-import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.UnknownPatientException;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.UnsupportedGenderException;
 import org.openmrs.test.BaseModuleContextSensitiveTest;
 
@@ -122,7 +121,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 		PatientIdentifierType patientIdentifierType = ps.getPatientIdentifierTypeByName("1.2.4");
 		assertNotNull(patientIdentifierType);
 
-		} catch (UnknownPatientException e) {
+		} catch (XDSException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 			fail();
@@ -148,7 +147,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 			assertEquals("Doe", pat.getFamilyName());
 			// This is a name that only OpenMRS knows about
 			assertEquals("Sarah", pat.getMiddleName());
-		} catch (UnknownPatientException e) {
+		} catch (XDSException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 			fail();
@@ -168,7 +167,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 			fail("Should have thrown exception");
 		} catch (UnsupportedGenderException e) {
 			// expected
-		} catch (UnknownPatientException e) {
+		} catch (XDSException e) {
 			fail();
 		}
 	}
@@ -275,7 +274,7 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
 		} catch (ClassNotFoundException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
-		} catch (UnknownPatientException e) {
+		} catch (XDSException e) {
 			// TODO Auto-generated catch block
 			e.printStackTrace();
 			fail();
