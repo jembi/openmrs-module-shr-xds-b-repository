@@ -61,8 +61,10 @@ import org.openmrs.module.shr.contenthandler.api.CodedValue;
 import org.openmrs.module.shr.contenthandler.api.Content;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
 import org.openmrs.module.shr.contenthandler.api.ContentHandlerService;
+import org.openmrs.module.xdsbrepository.Identifier;
 import org.openmrs.module.xdsbrepository.XDSbService;
 import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
+import org.openmrs.module.xdsbrepository.exceptions.CXParseException;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.XdsDocumentRepositoryService;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.UnsupportedGenderException;
 import org.springframework.stereotype.Service;
@@ -550,33 +552,31 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
      */
     protected Patient findOrCreatePatient(ExtrinsicObjectType eo) throws PatientIdentifierException, JAXBException, UnsupportedGenderException, XDSException {
         String patCX = InfosetUtil.getExternalIdentifierValue(XDSConstants.UUID_XDSDocumentEntry_patientId, eo);
-        patCX.replaceAll("&amp;", "&");
-        String patId = patCX.substring(0, patCX.indexOf('^'));
-        String assigningAuthority = patCX.substring(patCX.indexOf('&') + 1, patCX.lastIndexOf('&'));
+        Identifier id = parsePatientIdentifier(patCX);
 
         PatientService ps = Context.getPatientService();
         // TODO: Is this correct, should we have patient identifier with the name as the assigning authority
-        PatientIdentifierType idType = ps.getPatientIdentifierTypeByName(assigningAuthority);
+        PatientIdentifierType idType = ps.getPatientIdentifierTypeByName(id.getAssigningAuthority().getAssigningAuthorityId());
         if (idType == null) {
             // create new idType
             idType = new PatientIdentifierType();
-            idType.setName(assigningAuthority);
-            idType.setDescription("ID type for assigning authority: '" + assigningAuthority + "'. Created by the xds-b-repository module.");
+            idType.setName(id.getAssigningAuthority().getAssigningAuthorityId());
+            idType.setDescription("ID type for assigning authority: '" + id.getAssigningAuthority().getAssigningAuthorityId() + "'. Created by the xds-b-repository module.");
             idType.setValidator("");
             idType = ps.savePatientIdentifierType(idType);
         }
 
-        List<Patient> patients = ps.getPatients(null, patId, Collections.singletonList(idType), true);
+        List<Patient> patients = ps.getPatients(null, id.getIdentifier(), Collections.singletonList(idType), true);
 
         Patient retVal = null;
 
         if (patients.size() > 1) {
-            throw new PatientIdentifierException("Multiple patients found for this identifier: " + patId + ", with id type: " + assigningAuthority);
+            throw new PatientIdentifierException("Multiple patients found for this identifier: " + id.getIdentifier() + ", with id type: " + id.getAssigningAuthority().getAssigningAuthorityId());
         } else if (patients.size() < 1) {
             if (Context.getAdministrationService().getGlobalProperty(XDSbServiceConstants.XDS_REPOSITORY_AUTOCREATE_PATIENTS).equals("true")) {
-                retVal = ps.savePatient(this.createPatient(eo, patId, idType));
+                retVal = ps.savePatient(this.createPatient(eo, id.getIdentifier(), idType));
             } else {
-                throw new XDSException(XDSException.XDS_ERR_UNKNOWN_PATID, String.format("Patient ID %s is not known to the repository", patId), null);
+                throw new XDSException(XDSException.XDS_ERR_UNKNOWN_PATID, String.format("Patient ID %s is not known to the repository", id.getIdentifier()), null);
             }
         } else {
             retVal = patients.get(0);
@@ -589,18 +589,16 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
     /**
      * Add local identifier to the patient.
      */
-    private void addLocalIdentifierToPatient(ExtrinsicObjectType eo, Patient pat) {
+    private void addLocalIdentifierToPatient(ExtrinsicObjectType eo, Patient pat) throws XDSException {
 
         String patCX = InfosetUtil.getSlotValue(eo.getSlot(), XDSConstants.SLOT_NAME_SOURCE_PATIENT_ID, null);
-        patCX.replaceAll("&amp;", "&");
-        String patId = patCX.substring(0, patCX.indexOf('^'));
-        String assigningAuthority = patCX.substring(patCX.indexOf('&') + 1, patCX.lastIndexOf('&'));
+        Identifier id = parsePatientIdentifier(patCX);
 
         // Add the source identifier type if it does not exist!
-        PatientIdentifierType pit = Context.getPatientService().getPatientIdentifierTypeByName(assigningAuthority);
+        PatientIdentifierType pit = Context.getPatientService().getPatientIdentifierTypeByName(id.getAssigningAuthority().getAssigningAuthorityId());
         if (pit == null) {
             pit = new PatientIdentifierType();
-            pit.setName(assigningAuthority);
+            pit.setName(id.getAssigningAuthority().getAssigningAuthorityId());
             pit.setDescription("Automatically created by OpenSHR XDS");
             Context.getPatientService().savePatientIdentifierType(pit);
 
@@ -609,12 +607,33 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
         // Does the patient already have this identifier?
         boolean hasId = false;
         for (PatientIdentifier pid : pat.getIdentifiers()) {
-            hasId |= pid.getIdentifierType().equals(pit) && pid.getIdentifier().equals(patId);
+            hasId |= pid.getIdentifierType().equals(pit) && pid.getIdentifier().equals(id.getIdentifier());
             if (hasId) break;
         }
         if (!hasId)
-            pat.addIdentifier(new PatientIdentifier(patId, pit, Context.getLocationService().getDefaultLocation()));
+            pat.addIdentifier(new PatientIdentifier(id.getIdentifier(), pit, Context.getLocationService().getDefaultLocation()));
     }
+
+
+    private Identifier parsePatientIdentifier(String id) throws XDSException {
+        id = id.replaceAll("&amp;", "&");
+        try {
+            Identifier result = new Identifier(id);
+
+            if (result.getIdentifier() == null) {
+                throw new CXParseException("Empty identifier");
+            }
+
+            if (result.getAssigningAuthority()==null || result.getAssigningAuthority().getAssigningAuthorityId()==null) {
+                throw new CXParseException("Assigning authority id not specified");
+            }
+
+            return result;
+        } catch (CXParseException e) {
+            throw new XDSException(XDSException.XDS_ERR_REPOSITORY_METADATA_ERROR, "Invalid DocumentEntry.patientId: " + e.getMessage(), null);
+        }
+    }
+
 
     /**
      * Create a new patient object from document metadata

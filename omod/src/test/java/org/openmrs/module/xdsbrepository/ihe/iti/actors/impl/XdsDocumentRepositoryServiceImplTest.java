@@ -148,9 +148,43 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
             fail("Should have thrown exception");
         } catch (UnsupportedGenderException e) {
             // expected
-        } catch (XDSException e) {
-            fail();
         }
+    }
+
+    public void testFindOrCreatePatientWithPatientId(String id) throws Exception {
+        XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
+        try {
+            ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest1.xml");
+            List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+            ExtrinsicObjectType eo = extrinsicObjects.get(0);
+            InfosetUtil.setExternalIdentifierValue(XDSConstants.UUID_XDSDocumentEntry_patientId, id, eo);
+
+            service.findOrCreatePatient(eo);
+
+            fail("Should have thrown exception");
+        } catch (XDSException e) {
+            // expected
+        }
+    }
+
+    @Test
+    public void findOrCreatePatient_shouldThrowXDSExceptionIfPatientIdHasNoAssigningAuthority() throws Exception {
+        testFindOrCreatePatientWithPatientId("12345");
+    }
+
+    @Test
+    public void findOrCreatePatient_shouldThrowXDSExceptionIfPatientIdEmpty() throws Exception {
+        testFindOrCreatePatientWithPatientId("^^^&1.2.3.4.5&ISO");
+    }
+
+    @Test
+    public void findOrCreatePatient_shouldThrowXDSExceptionIfPatientIdIsInvalid() throws Exception {
+        testFindOrCreatePatientWithPatientId("this is a bad id");
+    }
+
+    @Test
+    public void findOrCreatePatient_shouldThrowXDSExceptionIfAssigningAuthorityIdEmpty() throws Exception {
+        testFindOrCreatePatientWithPatientId("12345^^^test&&ISO");
     }
 
     @Test
