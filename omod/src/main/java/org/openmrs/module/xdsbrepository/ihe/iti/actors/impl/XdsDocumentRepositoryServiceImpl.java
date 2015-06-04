@@ -1,7 +1,6 @@
 package org.openmrs.module.xdsbrepository.ihe.iti.actors.impl;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
@@ -160,7 +159,8 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
             }
 
         } catch (Exception e) {
-            handleException(response, e);
+            processExceptionForResponse(response, e);
+            Context.clearSession(); //TODO this doesn't seem to rollback
 
         } finally {
             XDSAudit.setAuditLogger(Context.getService(AtnaAuditService.class).getLogger());
@@ -176,15 +176,8 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 
     /**
      * Store a document and return its UUID
-     *
-     * @throws UnsupportedEncodingException
-     * @throws UnsupportedGenderException
-     * @throws ParseException
-     * @throws JAXBException
-     * @throws PatientIdentifierException
-     * @throws ClassNotFoundException
      */
-    protected String storeDocument(ExtrinsicObjectType eot, ProvideAndRegisterDocumentSetRequestType request) throws UnsupportedEncodingException, PatientIdentifierException, JAXBException, ParseException, UnsupportedGenderException, ClassNotFoundException, XDSException {
+    protected String storeDocument(ExtrinsicObjectType eot, ProvideAndRegisterDocumentSetRequestType request) throws JAXBException, UnsupportedGenderException, XDSException {
 
         String docId = eot.getId();
         Map<String, Document> docs = InfosetUtil.getDocuments(request);
@@ -350,7 +343,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
      * @return an encounter type
      * @throws JAXBException
      */
-    protected EncounterType findOrCreateEncounterType(ExtrinsicObjectType eo) throws JAXBException {
+    protected EncounterType findOrCreateEncounterType(ExtrinsicObjectType eo) {
         // TODO: is it ok to only use classcode? should we use format code or type code as well?
         ClassificationType classCodeCT = this.getClassificationFromExtrinsicObject(XDSConstants.UUID_XDSDocumentEntry_classCode, eo);
         String classCode = classCodeCT.getNodeRepresentation();
@@ -555,7 +548,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
      * @throws ParseException
      * @throws JAXBException
      */
-    protected Patient findOrCreatePatient(ExtrinsicObjectType eo) throws PatientIdentifierException, JAXBException, ParseException, UnsupportedGenderException, XDSException {
+    protected Patient findOrCreatePatient(ExtrinsicObjectType eo) throws PatientIdentifierException, JAXBException, UnsupportedGenderException, XDSException {
         String patCX = InfosetUtil.getExternalIdentifierValue(XDSConstants.UUID_XDSDocumentEntry_patientId, eo);
         patCX.replaceAll("&amp;", "&");
         String patId = patCX.substring(0, patCX.indexOf('^'));
@@ -580,10 +573,11 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
         if (patients.size() > 1) {
             throw new PatientIdentifierException("Multiple patients found for this identifier: " + patId + ", with id type: " + assigningAuthority);
         } else if (patients.size() < 1) {
-            if (Context.getAdministrationService().getGlobalProperty(XDSbServiceConstants.XDS_REPOSITORY_AUTOCREATE_PATIENTS).equals("true"))
+            if (Context.getAdministrationService().getGlobalProperty(XDSbServiceConstants.XDS_REPOSITORY_AUTOCREATE_PATIENTS).equals("true")) {
                 retVal = ps.savePatient(this.createPatient(eo, patId, idType));
-            else
+            } else {
                 throw new XDSException(XDSException.XDS_ERR_UNKNOWN_PATID, String.format("Patient ID %s is not known to the repository", patId), null);
+            }
         } else {
             retVal = patients.get(0);
         }
@@ -634,7 +628,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
      * @throws UnsupportedGenderException
      */
     private Patient createPatient(ExtrinsicObjectType eo, String patId, PatientIdentifierType idType)
-            throws JAXBException, ParseException, UnsupportedGenderException {
+            throws JAXBException, UnsupportedGenderException, XDSException {
         Map<String, SlotType1> slots = InfosetUtil.getSlotsFromRegistryObject(eo);
         SlotType1 patInfoSlot = slots.get(XDSConstants.SLOT_NAME_SOURCE_PATIENT_INFO);
         List<String> valueList = patInfoSlot.getValueList().getValue();
@@ -656,9 +650,13 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
                 pat.addName(pn);
             } else if (val.startsWith("PID-7|")) {
                 // patient date of birth
-                val = val.replace("PID-7|", "");
-                Date dob = sdf.parse(val);
-                pat.setBirthdate(dob);
+                try {
+                    val = val.replace("PID-7|", "");
+                    Date dob = sdf.parse(val);
+                    pat.setBirthdate(dob);
+                } catch (ParseException ex) {
+                    throw new XDSException(XDSException.XDS_ERR_REPOSITORY_METADATA_ERROR, "Unparseable date of birth value found: " + val, null);
+                }
             } else if (val.startsWith("PID-8|")) {
                 // patient gender
                 val = val.replace("PID-8|", "");
@@ -834,7 +832,8 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
             }
 
         } catch (Exception x) {
-            handleException(regRsp, x);
+            processExceptionForResponse(regRsp, x);
+            Context.clearSession(); //TODO this doesn't seem to rollback
         } finally {
             XDSAudit.setAuditLogger(Context.getService(AtnaAuditService.class).getLogger());
             XDSAudit.logRepositoryRetrieveExport(req, rsp, new AuditRequestInfo(null, null));
@@ -855,8 +854,9 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
         docRsp.setDocumentUniqueId(documentUniqueId);
 
         // JF : HACK: New Document Unique Id if different
-        if (!content.getContentId().equals(documentUniqueId))
+        if (!content.getContentId().equals(documentUniqueId)) {
             docRsp.setNewDocumentUniqueId(content.getContentId());
+        }
 
         docRsp.setMimeType(content.getContentType());
         docRsp.setRepositoryUniqueId(repositoryUniqueId);
@@ -868,7 +868,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
     }
 
 
-    private void handleException(RegistryResponseType response, Throwable t) {
+    private void processExceptionForResponse(RegistryResponseType response, Throwable t) {
         log.error(t);
         response.setStatus(XDSConstants.XDS_B_STATUS_FAILURE);
 
@@ -882,7 +882,5 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 
             t.printStackTrace();
         }
-
-        Context.clearSession(); //TODO this doesn't do anything
     }
 }
