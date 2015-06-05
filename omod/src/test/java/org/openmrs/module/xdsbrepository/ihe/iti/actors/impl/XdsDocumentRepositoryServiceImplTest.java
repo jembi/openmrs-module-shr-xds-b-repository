@@ -1,8 +1,6 @@
 package org.openmrs.module.xdsbrepository.ihe.iti.actors.impl;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.junit.Assert.*;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.doReturn;
@@ -11,6 +9,8 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
 
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
@@ -22,6 +22,7 @@ import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
 import javax.xml.bind.Unmarshaller;
 
+import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import org.dcm4chee.xds2.common.XDSConstants;
 import org.dcm4chee.xds2.common.exception.XDSException;
 import org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType;
@@ -29,8 +30,10 @@ import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetRequestType;
 import org.dcm4chee.xds2.infoset.ihe.RetrieveDocumentSetResponseType;
 import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
 import org.dcm4chee.xds2.infoset.rim.RegistryError;
+import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
 import org.dcm4chee.xds2.infoset.util.InfosetUtil;
 import org.junit.Before;
+import org.junit.Rule;
 import org.junit.Test;
 import org.openmrs.EncounterRole;
 import org.openmrs.EncounterType;
@@ -54,6 +57,27 @@ import org.openmrs.test.BaseModuleContextSensitiveTest;
 
 public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensitiveTest {
 
+    @Rule
+    public WireMockRule wireMockRule = new WireMockRule(8089);
+
+    private void stubRegistry() {
+        stubFor(post(urlEqualTo("/ws/xdsregistry"))
+                .willReturn(aResponse()
+                        .withStatus(200)
+                        .withHeader("Content-Type", "application/soap+xml")
+                        .withBody(registryResponse)));
+    }
+
+    private static final String registryResponse = "<s:Envelope xmlns:s='http://www.w3.org/2003/05/soap-envelope' xmlns:a='http://www.w3.org/2005/08/addressing'>"
+            + "  <s:Header>"
+            + "		<a:Action s:mustUnderstand='1'>urn:ihe:iti:2007:RegisterDocumentSet-bResponse</a:Action>"
+            + "		<a:RelatesTo>urn:uuid:1ec52e14-4aad-4ba1-b7d3-fc9812a21340</a:RelatesTo>"
+            + "	</s:Header>"
+            + "  <s:Body>"
+            + "		<rs:RegistryResponse xsi:schemaLocation='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0 ../../schema/ebRS/rs.xsd' status='urn:oasis:names:tc:ebxml-regrep:ResponseStatusType:Success' xmlns:rs='urn:oasis:names:tc:ebxml-regrep:xsd:rs:3.0' xmlns:xsi='http://www.w3.org/2001/XMLSchema-instance'/>"
+            + "	</s:Body>"
+            + "</s:Envelope>";
+
     @Before
     public void setup() throws Exception {
         executeDataSet("src/test/resources/provideAndRegRequest-dataset.xml");
@@ -66,6 +90,8 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
         as.saveGlobalProperty(gp2);
         GlobalProperty gp3 = new GlobalProperty("shr.contenthandler.cacheConceptsByName", "false");
         as.saveGlobalProperty(gp3);
+        GlobalProperty gp4 = new GlobalProperty(XDSbServiceConstants.XDS_REGISTRY_URL_GP, "http://localhost:8089/ws/xdsregistry");
+        as.saveGlobalProperty(gp4);
     }
 
     @SuppressWarnings("unchecked")
@@ -519,5 +545,61 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
     @Test
     public void validateMetadata_shouldRejectWhenNoSourcePatientId() throws Exception {
         testValidateMetadata("provideAndRegRequest_noSourcePatientId.xml");
+    }
+
+    @Test
+    public void provideAndRegisterDocumentSetB_shouldRespondWithXDSbSuccessCode() throws Exception {
+        stubRegistry();
+
+        XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
+        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest1.xml");
+
+        RegistryResponseType result = service.provideAndRegisterDocumentSetB(request);
+
+        assertNotNull(result);
+        assertEquals(XDSConstants.XDS_B_STATUS_SUCCESS, result.getStatus());
+    }
+
+    @Test
+    public void provideAndRegisterDocumentSetB_shouldSendRegistryRequest() throws Exception {
+        stubRegistry();
+
+        XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
+        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest1.xml");
+
+        service.provideAndRegisterDocumentSetB(request);
+
+        com.github.tomakehurst.wiremock.client.WireMock.verify(postRequestedFor(urlEqualTo("/ws/xdsregistry"))
+           .withHeader("Content-Type", containing("application/soap+xml"))
+           .withRequestBody(containing("SubmitObjectsRequest"))
+           .withRequestBody(containing("1111111111^^^&amp;1.2.3&amp;ISO")));
+    }
+
+    @Test
+    public void provideAndRegisterDocumentSetB_invalidMetadata_shouldRespondWithXDSbError() throws Exception {
+        stubRegistry();
+
+        XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
+        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest_noClassCode.xml");
+
+        RegistryResponseType result = service.provideAndRegisterDocumentSetB(request);
+
+        assertNotNull(result);
+        assertEquals(XDSConstants.XDS_B_STATUS_FAILURE, result.getStatus());
+        assertNotNull(result.getRegistryErrorList().getRegistryError());
+        assertTrue(result.getRegistryErrorList().getRegistryError().size() > 0);
+        assertEquals(XDSException.XDS_ERR_REPOSITORY_METADATA_ERROR, result.getRegistryErrorList().getRegistryError().get(0).getErrorCode());
+    }
+
+    @Test
+    public void provideAndRegisterDocumentSetB_invalidMetadata_shouldNotSendRegistryRequest() throws Exception {
+        stubRegistry();
+
+        XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
+        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest_noClassCode.xml");
+
+        service.provideAndRegisterDocumentSetB(request);
+
+        com.github.tomakehurst.wiremock.client.WireMock.verify(0, postRequestedFor(urlEqualTo("/ws/xdsregistry")));
     }
 }
