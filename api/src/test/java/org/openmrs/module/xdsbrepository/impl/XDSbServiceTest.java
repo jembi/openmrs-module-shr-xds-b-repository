@@ -181,6 +181,24 @@ public class XDSbServiceTest extends BaseModuleContextSensitiveTest {
         assertNull(handlerClass);
     }
 
+    @Test
+    public void sendMetadataToRegistry_shouldThrowErrorIfRegistryUnavailable() throws Exception {
+        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest1.xml");
+
+        XDSbServiceImpl service = new XDSbServiceImpl();
+
+        try {
+            service.sendMetadataToRegistry(new URL("http://localhost:9999/not/here"), request.getSubmitObjectsRequest());
+            fail("Failed to fail");
+        } catch (XDSException ex) {
+            //expected
+
+            if (!ex.getErrorCode().equals(XDSException.XDS_ERR_REG_NOT_AVAIL)) {
+                fail("XDSException did not specify correct error code");
+            }
+        }
+    }
+
     public class TestContentHandler1 implements ContentHandler {
 
         @Override
@@ -213,7 +231,7 @@ public class XDSbServiceTest extends BaseModuleContextSensitiveTest {
 
         @Override
         public ContentHandler cloneHandler() {
-            return new TestContentHandler1();
+            return new TestContentHandler2();
         }
     }
 
