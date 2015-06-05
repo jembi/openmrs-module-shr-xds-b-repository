@@ -1,14 +1,5 @@
 package org.openmrs.module.xdsbrepository.impl;
 
-import java.io.StringWriter;
-import java.net.MalformedURLException;
-import java.net.URL;
-import java.util.Map;
-
-import javax.xml.bind.JAXBContext;
-import javax.xml.bind.JAXBException;
-import javax.xml.bind.Marshaller;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.dcm4che3.audit.AuditMessages.EventTypeCode;
@@ -16,18 +7,11 @@ import org.dcm4che3.net.audit.AuditLogger;
 import org.dcm4chee.xds2.common.XDSConstants;
 import org.dcm4chee.xds2.common.audit.AuditRequestInfo;
 import org.dcm4chee.xds2.common.audit.XDSAudit;
+import org.dcm4chee.xds2.common.exception.XDSException;
 import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
 import org.dcm4chee.xds2.infoset.rim.RegistryPackageType;
-import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
-import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
-import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
-import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
-import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
-import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
 import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
-import org.dcm4chee.xds2.infoset.rim.SlotType1;
 import org.dcm4chee.xds2.infoset.rim.SubmitObjectsRequest;
-import org.dcm4chee.xds2.infoset.rim.ValueListType;
 import org.dcm4chee.xds2.infoset.util.DocumentRegistryPortTypeFactory;
 import org.dcm4chee.xds2.infoset.util.InfosetUtil;
 import org.dcm4chee.xds2.infoset.ws.registry.DocumentRegistryPortType;
@@ -39,8 +23,12 @@ import org.openmrs.module.shr.contenthandler.api.ContentHandler;
 import org.openmrs.module.xdsbrepository.XDSbService;
 import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
 import org.openmrs.module.xdsbrepository.db.XDSbDAO;
-import org.openmrs.module.xdsbrepository.exceptions.RegistryNotAvailableException;
 import org.springframework.transaction.annotation.Transactional;
+
+import javax.xml.bind.JAXBException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.util.Map;
 
 @Transactional
 public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
@@ -101,7 +89,7 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 	* Register documents on registry
 	* @throws Exception
 	*/
-	protected RegistryResponseType sendMetadataToRegistry(URL registryUrl, SubmitObjectsRequest submitObjectRequest) throws RegistryNotAvailableException {
+	protected RegistryResponseType sendMetadataToRegistry(URL registryUrl, SubmitObjectsRequest submitObjectRequest) throws XDSException {
 		
 		DocumentRegistryPortType port = DocumentRegistryPortTypeFactory.getDocumentRegistryPortSoap12(registryUrl.toString());
 		log.info("XDS.b: Send register document-b request to registry:" + registryUrl);
@@ -144,7 +132,7 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 			
 		} catch (Exception e) {
 			wasSuccess = false;
-			throw new RegistryNotAvailableException("Document Registry not available: " + registryUrl, e);
+			throw new XDSException(XDSException.XDS_ERR_REG_NOT_AVAIL, "Document Registry not available: " + registryUrl, e);
 		}
 		finally
 		{
