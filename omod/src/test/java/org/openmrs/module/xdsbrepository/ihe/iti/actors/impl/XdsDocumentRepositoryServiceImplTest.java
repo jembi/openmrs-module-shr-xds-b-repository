@@ -143,6 +143,41 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
     }
 
     @Test
+    public void findOrCreatePatient_shouldCreateANewPatientWhenNoPatientNameIsAvailable() throws Exception {
+        XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
+        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest_noPatientName.xml");
+        List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+        ExtrinsicObjectType eo = extrinsicObjects.get(0);
+
+
+        Patient pat;
+        pat = service.findOrCreatePatient(eo);
+
+        // check patient was created correctly
+        assertNotNull(pat);
+        assertEquals("M", pat.getGender());
+
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
+        String dob = sdf.format(pat.getBirthdate());
+        assertEquals("19560527", dob);
+
+        assertEquals("*", pat.getGivenName());
+        assertEquals("*", pat.getFamilyName());
+
+        PersonAddress pa = pat.getAddresses().iterator().next();
+        assertEquals("100 Main St", pa.getAddress1());
+        assertEquals("Metropolis", pa.getCityVillage());
+        assertEquals("Il", pa.getStateProvince());
+        assertEquals("44130", pa.getPostalCode());
+        assertEquals("USA", pa.getCountry());
+
+        // check that the needed identifier type was created
+        PatientService ps = Context.getPatientService();
+        PatientIdentifierType patientIdentifierType = ps.getPatientIdentifierTypeByName("1.2.4");
+        assertNotNull(patientIdentifierType);
+    }
+
+    @Test
     public void findOrCreatePatient_shouldFindAnExistingPatient() throws Exception {
         XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
         ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest1.xml");
@@ -570,9 +605,9 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
         service.provideAndRegisterDocumentSetB(request);
 
         com.github.tomakehurst.wiremock.client.WireMock.verify(postRequestedFor(urlEqualTo("/ws/xdsregistry"))
-           .withHeader("Content-Type", containing("application/soap+xml"))
-           .withRequestBody(containing("SubmitObjectsRequest"))
-           .withRequestBody(containing("1111111111^^^&amp;1.2.3&amp;ISO")));
+                .withHeader("Content-Type", containing("application/soap+xml"))
+                .withRequestBody(containing("SubmitObjectsRequest"))
+                .withRequestBody(containing("1111111111^^^&amp;1.2.3&amp;ISO")));
     }
 
     @Test
@@ -601,5 +636,21 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
         service.provideAndRegisterDocumentSetB(request);
 
         com.github.tomakehurst.wiremock.client.WireMock.verify(0, postRequestedFor(urlEqualTo("/ws/xdsregistry")));
+    }
+
+    @Test
+    public void provideAndRegisterDocumentSetB_shouldRespondWithXDSbErrorIfRegistryUnavailable() throws Exception {
+        //don't stub registry
+
+        XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
+        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest1.xml");
+
+        RegistryResponseType result = service.provideAndRegisterDocumentSetB(request);
+
+        assertNotNull(result);
+        assertEquals(XDSConstants.XDS_B_STATUS_FAILURE, result.getStatus());
+        assertNotNull(result.getRegistryErrorList().getRegistryError());
+        assertTrue(result.getRegistryErrorList().getRegistryError().size() > 0);
+        assertEquals(XDSException.XDS_ERR_REG_NOT_AVAIL, result.getRegistryErrorList().getRegistryError().get(0).getErrorCode());
     }
 }
