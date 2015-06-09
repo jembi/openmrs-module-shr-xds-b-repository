@@ -11,7 +11,6 @@ import org.openmrs.api.OpenmrsService;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
 import org.springframework.transaction.annotation.Transactional;
 
-@Transactional
 public interface XDSbService extends OpenmrsService {
 
     /**
