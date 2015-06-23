@@ -6,6 +6,9 @@ import org.openmrs.api.context.Context;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
 import org.openmrs.module.xdsbrepository.model.DocHandlerMapping;
 import org.openmrs.module.xdsbrepository.db.XDSbDAO;
+import org.openmrs.module.xdsbrepository.model.QueueItem;
+
+import java.util.List;
 
 
 public class HibernateXDSbDAO implements XDSbDAO {
@@ -33,7 +36,31 @@ public class HibernateXDSbDAO implements XDSbDAO {
         return (Class<? extends ContentHandler>) Context.loadClass(docMap.getHandlerClass());
 	}
 
-    public SessionFactory getSessionFactory() {
+	@Override
+	public QueueItem queueDiscreteDataProcessing(QueueItem qi) {
+		sessionFactory.getCurrentSession().save(qi);
+		return qi;
+	}
+
+	@Override
+	public QueueItem dequeueNextDiscreteDataForProcessing() {
+		Query query = sessionFactory.getCurrentSession().createQuery("from QueueItem where status='QUEUED' order by date_added");
+		List list = query.list();
+		if (list.size() < 1) {
+			return null;
+		} else {
+			// return the oldest queue item (FIFO queue)
+			return (QueueItem) list.get(0);
+		}
+	}
+
+	@Override
+	public QueueItem updateQueueItem(QueueItem qi) {
+		sessionFactory.getCurrentSession().update(qi);
+		return qi;
+	}
+
+	public SessionFactory getSessionFactory() {
         return sessionFactory;
     }
 

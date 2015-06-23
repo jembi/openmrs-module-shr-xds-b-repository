@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -62,11 +63,13 @@ import org.openmrs.module.shr.contenthandler.api.Content;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
 import org.openmrs.module.shr.contenthandler.api.ContentHandlerService;
 import org.openmrs.module.xdsbrepository.Identifier;
+import org.openmrs.module.xdsbrepository.Utils;
 import org.openmrs.module.xdsbrepository.XDSbService;
 import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
 import org.openmrs.module.xdsbrepository.exceptions.CXParseException;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.XdsDocumentRepositoryService;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.impl.exceptions.UnsupportedGenderException;
+import org.openmrs.module.xdsbrepository.model.QueueItem;
 import org.springframework.stereotype.Service;
 
 /**
@@ -104,19 +107,6 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
     }
 
     /**
-     * Start an OpenMRS Session
-     */
-    private void startSession() {
-        AdministrationService as = Context.getAdministrationService();
-        String username = as.getGlobalProperty(XDSbServiceConstants.WS_USERNAME_GP);
-        String password = as.getGlobalProperty(XDSbServiceConstants.WS_PASSWORD_GP);
-
-        Context.openSession();
-        Context.authenticate(username, password);
-
-    }
-
-    /**
      * Document repository service implementation
      *
      * @see XdsDocumentRepositoryService#provideAndRegisterDocumentSetB(org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType)
@@ -137,7 +127,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 
         try {
             if (!Context.isAuthenticated()) {
-                this.startSession();
+                Utils.startSession();
             }
 
             List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
@@ -155,7 +145,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
             // Save each document
             if (response.getStatus().equals(XDSConstants.XDS_B_STATUS_SUCCESS)) {
                 for (ExtrinsicObjectType eot : extrinsicObjects) {
-                    contentHandlers.put(this.storeDocument(eot, request), UnstructuredDataHandler.class);
+                    this.storeDocument(eot, request);
                 }
             }
 
@@ -334,12 +324,52 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 
         // always send to the default unstructured data handler
         defaultHandler.saveContent(patient, providersByRole, encounterType, content);
-        // If another handler exists send to that as well
+        // If another handler exists send to that as well, do this async if config is set
         if (discreteHandler != null) {
-            discreteHandler.saveContent(patient, providersByRole, encounterType, content);
+            if (Context.getAdministrationService().getGlobalProperty(XDSbServiceConstants.XDS_REPOSITORY_DISCRETE_HANDLER_ASYNC, "false").equalsIgnoreCase("true")) {
+                QueueItem qi = new QueueItem();
+                qi.setDocUniqueId(docUniqueId);
+                qi.setPatient(patient);
+                qi.setEncounterType(encounterType);
+                String rolesProvidersStr = stringifyRoleProvidersMap(providersByRole);
+                qi.setRoleProviderMap(rolesProvidersStr);
+
+                XDSbService xdsService = Context.getService(XDSbService.class);
+                xdsService.queueDiscreteDataProcessing(qi);
+            } else {
+                discreteHandler.saveContent(patient, providersByRole, encounterType, content);
+            }
         }
 
         return docUniqueId;
+    }
+
+    /**
+     * Represent the roles to provider map as a string using ids. This is done so that we don't have to
+     * perform complex hibernate mappings and so that we don't have to extend the OpenMRS provider object.
+     * @param providersByRole a map of roles to a set of providers
+     * @return a string format of the map eg. 2:23,24,26|4:19,12 where the format is:
+     * <role_id>:<provider_id>,<provider_id>,...|<role_id>:<provider_id>,<provider_id>,...|...
+     */
+    protected String stringifyRoleProvidersMap(Map<EncounterRole, Set<Provider>> providersByRole) {
+        StringBuffer sb = new StringBuffer();
+        Iterator<EncounterRole> roleIterator = providersByRole.keySet().iterator();
+        while (roleIterator.hasNext()) {
+            EncounterRole role = roleIterator.next();
+            sb.append(role.getId() + ":");
+            Set<Provider> providers = providersByRole.get(role);
+            Iterator<Provider> providerIterator = providers.iterator();
+            while (providerIterator.hasNext()) {
+                sb.append(providerIterator.next().getId());
+                if (providerIterator.hasNext()) {
+                    sb.append(",");
+                }
+            }
+            if (roleIterator.hasNext()) {
+                sb.append("|");
+            }
+        }
+        return sb.toString();
     }
 
     /**
@@ -781,14 +811,15 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 
         try {
             if (!Context.isAuthenticated()) {
-                this.startSession();
+                Utils.startSession();
             }
 
             String repositoryUID = getRepositoryUniqueId();
             String docUid, reqRepoUid;
             Content content;
-            for (DocumentRequest drq : req.getDocumentRequest())
+            for (DocumentRequest drq : req.getDocumentRequest()) {
                 drq.setHomeCommunityId(Context.getAdministrationService().getGlobalProperty(XDSbServiceConstants.XDS_HOME_COMMUNITY_ID));
+            }
             RetrieveDocumentSetResponseType.DocumentResponse docRsp;
             List<String> retrievedUIDs = new ArrayList<String>();
             int requestCount = req.getDocumentRequest().size();

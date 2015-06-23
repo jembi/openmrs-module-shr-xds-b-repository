@@ -13,6 +13,7 @@ import org.openmrs.module.shr.contenthandler.api.Content;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
 import org.openmrs.module.xdsbrepository.XDSbService;
 import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
+import org.openmrs.module.xdsbrepository.model.QueueItem;
 import org.openmrs.test.BaseModuleContextSensitiveTest;
 
 import javax.xml.bind.JAXBContext;
@@ -197,6 +198,25 @@ public class XDSbServiceTest extends BaseModuleContextSensitiveTest {
                 fail("XDSException did not specify correct error code");
             }
         }
+    }
+
+    @Test
+    public void queueDiscreteDataProcessing_shouldStoreItemInQueue() {
+        XDSbService service = Context.getService(XDSbService.class);
+
+        QueueItem qi = new QueueItem();
+        qi.setPatient(Context.getPatientService().getPatient(2));
+        qi.setEncounterType(Context.getEncounterService().getEncounterType(1));
+        qi.setRoleProviderMap("1:1,2|2:3");
+        qi.setDocUniqueId("123456789");
+
+        service.queueDiscreteDataProcessing(qi);
+
+        QueueItem ret = service.dequeueNextDiscreteDataForProcessing();
+        assertEquals("123456789", ret.getDocUniqueId());
+        assertEquals(new Integer(2), ret.getPatient().getId());
+        assertEquals(new Integer(1), ret.getEncounterType().getId());
+        assertEquals("1:1,2|2:3", ret.getRoleProviderMap());
     }
 
     public class TestContentHandler1 implements ContentHandler {

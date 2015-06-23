@@ -7,6 +7,7 @@ import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
 import org.dcm4chee.xds2.infoset.rim.SubmitObjectsRequest;
 import org.openmrs.api.OpenmrsService;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
+import org.openmrs.module.xdsbrepository.model.QueueItem;
 import org.springframework.transaction.annotation.Transactional;
 
 @Transactional
@@ -44,4 +45,23 @@ public interface XDSbService extends OpenmrsService {
 	 */
 	public Class<? extends ContentHandler> getDocumentHandlerClass(String documentUniqueId) throws ClassNotFoundException;
 
+	/**
+	 * @param qi - the QueueItem to add to  the queue.
+	 * @return The QueueItem that was saved to the queue.
+	 */
+	public QueueItem queueDiscreteDataProcessing(QueueItem qi);
+
+	/**
+	 * @param qi - return the oldest queue item for processing.
+	 * @return The QueueItem to be processed.
+	 */
+	public QueueItem dequeueNextDiscreteDataForProcessing();
+
+	/**
+	 * Completes this queue item (mark it as done). You must also indicate if the item was processed succeefully or not.
+	 * @param qi - the QueueItem to complete.
+	 * @param successful - a boolean to idicate if the processing was successful or not
+	 * @return the updated QueueItem
+	 */
+	public QueueItem completeQueueItem(QueueItem qi, boolean successful);
 }

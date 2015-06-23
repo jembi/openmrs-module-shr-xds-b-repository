@@ -23,11 +23,13 @@ import org.openmrs.module.shr.contenthandler.api.ContentHandler;
 import org.openmrs.module.xdsbrepository.XDSbService;
 import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
 import org.openmrs.module.xdsbrepository.db.XDSbDAO;
+import org.openmrs.module.xdsbrepository.model.QueueItem;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.xml.bind.JAXBException;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Date;
 import java.util.Map;
 
 @Transactional
@@ -83,6 +85,38 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 	@Override
 	public Class<? extends ContentHandler> getDocumentHandlerClass(String documentUniqueId) throws ClassNotFoundException {
 		return dao.getDocumentHandlerClass(documentUniqueId);
+	}
+
+	@Override
+	public QueueItem queueDiscreteDataProcessing(QueueItem qi) {
+		qi.setStatus(QueueItem.Status.QUEUED);
+		qi.setDateAdded(new Date());
+		return dao.queueDiscreteDataProcessing(qi);
+	}
+
+	@Override
+	public QueueItem dequeueNextDiscreteDataForProcessing() {
+		synchronized (this) {
+			QueueItem qi = dao.dequeueNextDiscreteDataForProcessing();
+			if (qi != null) {
+				qi.setStatus(QueueItem.Status.PROCESSING);
+				qi.setDateUpdated(new Date());
+				return dao.updateQueueItem(qi);
+			} else {
+				return null;
+			}
+		}
+	}
+
+	@Override
+	public QueueItem completeQueueItem(QueueItem qi, boolean successful) {
+		if (successful) {
+			qi.setStatus(QueueItem.Status.SUCCESSFUL);
+		} else {
+			qi.setStatus(QueueItem.Status.FAILED);
+		}
+		qi.setDateUpdated(new Date());
+		return dao.updateQueueItem(qi);
 	}
 
 	/**

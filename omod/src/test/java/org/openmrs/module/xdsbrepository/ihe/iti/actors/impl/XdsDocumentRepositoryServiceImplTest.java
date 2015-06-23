@@ -14,6 +14,8 @@ import static com.github.tomakehurst.wiremock.client.WireMock.*;
 
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -652,5 +654,41 @@ public class XdsDocumentRepositoryServiceImplTest extends BaseModuleContextSensi
         assertNotNull(result.getRegistryErrorList().getRegistryError());
         assertTrue(result.getRegistryErrorList().getRegistryError().size() > 0);
         assertEquals(XDSException.XDS_ERR_REG_NOT_AVAIL, result.getRegistryErrorList().getRegistryError().get(0).getErrorCode());
+    }
+
+    @Test
+    public void stringifyRoleProvidersMap_shouldReturnAStringRepresentationOfTheMap() {
+        XdsDocumentRepositoryServiceImpl service = new XdsDocumentRepositoryServiceImpl();
+        Map<EncounterRole, Set<Provider>> providersByRole = new HashMap<EncounterRole, Set<Provider>>();
+
+        Provider p1 = new Provider();
+        p1.setId(1);
+        Provider p2 = new Provider();
+        p2.setId(2);
+        Provider p3 = new Provider();
+        p3.setId(3);
+
+        Set set1 = new HashSet();
+        set1.add(p1);
+        set1.add(p2);
+
+        Set set2 = new HashSet();
+        set2.add(p3);
+
+        EncounterRole er1 = new EncounterRole();
+        er1.setId(1);
+
+        EncounterRole er2 = new EncounterRole();
+        er2.setId(2);
+
+        providersByRole.put(er1, set1);
+        providersByRole.put(er2, set2);
+
+        String s = service.stringifyRoleProvidersMap(providersByRole);
+
+        // should be 2:3|1:2,1 or equivalent
+        assertTrue(s.contains("2:3"));
+        assertTrue(s.contains("1:"));
+        assertTrue(s.contains("2,1") || s.contains("1,2"));
     }
 }
