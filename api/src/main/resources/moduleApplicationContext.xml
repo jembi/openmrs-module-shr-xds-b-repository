@@ -29,7 +29,7 @@
 	                    <bean class="org.openmrs.module.xdsbrepository.impl.XDSbServiceImpl">
 	                        <property name="dao">
 	                            <bean class="org.openmrs.module.xdsbrepository.db.hibernate.HibernateXDSbDAO">
-	                                <property name="sessionFactory"><ref bean="sessionFactory"/></property>
+	                                <property name="sessionFactory"><ref bean="dbSessionFactory"/></property>
 	                            </bean>
 	                        </property>
 	                    </bean>
