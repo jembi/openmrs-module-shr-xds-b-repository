@@ -102,7 +102,7 @@
 	<globalProperty>
 		<property>${project.parent.artifactId}.discreteHandler.asyncMaxTasks</property>
 		<description>This property specifies the maximum number of processor threads to run for processing discrete data. A good value to set this to is equal to 75% of the number of cores available on your server. It's good to leave some available to service incoming requests efficiently.</description>
-		<defaultValue>8</defaultValue>
+		<defaultValue>6</defaultValue>
 	</globalProperty>
 </module>
 
