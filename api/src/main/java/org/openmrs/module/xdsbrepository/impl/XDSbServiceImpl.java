@@ -19,10 +19,7 @@ import org.openmrs.api.context.Context;
 import org.openmrs.api.impl.BaseOpenmrsService;
 import org.openmrs.module.shr.atna.api.AtnaAuditService;
 import org.openmrs.module.shr.contenthandler.UnstructuredDataHandler;
-import org.openmrs.module.shr.contenthandler.api.CodedValue;
-import org.openmrs.module.shr.contenthandler.api.Content;
-import org.openmrs.module.shr.contenthandler.api.ContentHandler;
-import org.openmrs.module.shr.contenthandler.api.ContentHandlerService;
+import org.openmrs.module.shr.contenthandler.api.*;
 import org.openmrs.module.xdsbrepository.Identifier;
 import org.openmrs.module.xdsbrepository.XDSbService;
 import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
@@ -166,6 +163,9 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 
 			wasSuccess = true;
 
+		} catch (ContentHandlerException ex) {
+			throw new XDSException(XDSException.XDS_ERR_REPOSITORY_ERROR, ex.getMessage(), ex);
+
 		} catch (UnsupportedGenderException ex) {
 			throw new XDSException(XDSException.XDS_ERR_REPOSITORY_ERROR, ex.getMessage(), ex);
 
@@ -304,7 +304,7 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 	/**
 	 * Store a document and return its UUID
 	 */
-	protected String storeDocument(ExtrinsicObjectType eot, ProvideAndRegisterDocumentSetRequestType request) throws JAXBException, XDSException, UnsupportedGenderException {
+	protected String storeDocument(ExtrinsicObjectType eot, ProvideAndRegisterDocumentSetRequestType request) throws JAXBException, XDSException, UnsupportedGenderException, ContentHandlerException {
 
 		String docId = eot.getId();
 		Map<String, ProvideAndRegisterDocumentSetRequestType.Document> docs = InfosetUtil.getDocuments(request);
