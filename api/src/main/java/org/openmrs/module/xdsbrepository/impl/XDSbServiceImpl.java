@@ -127,9 +127,9 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 	}
 
 
-	@Transactional(readOnly = false, rollbackFor = XDSException.class)
+	@Transactional(readOnly = false, rollbackFor = {XDSException.class, ContentHandlerException.class} )
 	@Override
-	public RegistryResponseType provideAndRegisterDocumentSetB(ProvideAndRegisterDocumentSetRequestType request) throws XDSException {
+	public RegistryResponseType provideAndRegisterDocumentSetB(ProvideAndRegisterDocumentSetRequestType request) throws XDSException, ContentHandlerException {
 		boolean wasSuccess = false;
 
 		// Get the required elements for auditing
@@ -162,9 +162,6 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 			}
 
 			wasSuccess = true;
-
-		} catch (ContentHandlerException ex) {
-			throw new XDSException(XDSException.XDS_ERR_REPOSITORY_ERROR, ex.getMessage(), ex);
 
 		} catch (UnsupportedGenderException ex) {
 			throw new XDSException(XDSException.XDS_ERR_REPOSITORY_ERROR, ex.getMessage(), ex);
