@@ -494,24 +494,30 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 	private Provider createProvider(String[] xcnComponents) {
 		Provider pro;
 		Person person;
+		PersonName name;
 		Set names;
 
 		// create a person and provider
 		pro = new Provider();
 		person = new Person();
+
 		names = new TreeSet<PersonName>();
 
 		pro.setIdentifier(xcnComponents[0]);
 
 		if (xcnComponents.length >= 3 && !xcnComponents[2].isEmpty() && !xcnComponents[1].isEmpty()) {
 			// if there are name components
-			names.add(new PersonName(xcnComponents[2], null, xcnComponents[1]));
+			name = new PersonName(xcnComponents[2], "", xcnComponents[1]);
+			names.add(name);
 			person.setNames(names);
+			person = Context.getPersonService().savePerson(person);
 			pro.setPerson(person);
 		} else {
 			// set the name to the id as that's add we have?
-			names.add(new PersonName(xcnComponents[0], null, null));
+			name = new PersonName(xcnComponents[0], "", "");
+			names.add(name);
 			person.setNames(names);
+			person = Context.getPersonService().savePerson(person);
 			pro.setPerson(person);
 		}
 
