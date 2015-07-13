@@ -24,41 +24,25 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-public class DiscreteDataProcessorTask extends Thread {
+public class DiscreteDataProcessorTask implements Runnable {
 
     private Log log = LogFactory.getLog(DiscreteDataProcessorTask.class);
 
-    private int pollPeriod;
-
-    public DiscreteDataProcessorTask() {
-        pollPeriod = Integer.parseInt(Context.getAdministrationService().getGlobalProperty(
-                XDSbServiceConstants.XDS_REPOSITORY_DISCRETE_HANDLER_ASYNC_POLL_PERIOD, "200"));
-    }
-
     @Override
     public void run() {
-        QueueItem currentQueueItem;
         XDSbService service = Context.getService(XDSbService.class);
         Utils.startSession();
 
-        while (true) {
-            currentQueueItem = service.dequeueNextDiscreteDataForProcessing();
-            if (currentQueueItem != null) {
-                try {
-                    processQueueItem(currentQueueItem);
-                    service.completeQueueItem(currentQueueItem, true);
-                } catch (Exception e) {
-                    log.error("Error processing discrete data asynchronously for queue item "
-                            + currentQueueItem.getId() + " for documentUniqueId " + currentQueueItem.getDocUniqueId(), e);
-                    if (currentQueueItem != null) {
-                        service.completeQueueItem(currentQueueItem, false);
-                    }
-                }
-            } else {
-                try {
-                    Thread.sleep(pollPeriod);
-                } catch (InterruptedException e) {
-                    // do nothing
+        QueueItem currentQueueItem = service.dequeueNextDiscreteDataForProcessing();
+        if (currentQueueItem != null) {
+            try {
+                processQueueItem(currentQueueItem);
+                service.completeQueueItem(currentQueueItem, true);
+            } catch (Exception e) {
+                log.error("Error processing discrete data asynchronously for queue item "
+                        + currentQueueItem.getId() + " for documentUniqueId " + currentQueueItem.getDocUniqueId(), e);
+                if (currentQueueItem != null) {
+                    service.completeQueueItem(currentQueueItem, false);
                 }
             }
         }

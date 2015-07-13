@@ -28,6 +28,11 @@ import org.openmrs.scheduler.SchedulerException;
 import org.openmrs.scheduler.SchedulerService;
 import org.openmrs.scheduler.TaskDefinition;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+
 /**
  * This class contains the logic that is run every time this module is either started or stopped.
  */
@@ -61,16 +66,24 @@ public class XDSbRepositoryInterfaceActivator implements ModuleActivator {
 	 */
 	public void started() {
 		XDSAudit.setAuditLogger(Context.getService(AtnaAuditService.class).getLogger());
-		XDSAudit.logApplicationActivity(AtnaConfiguration.getInstance().getDeviceName(), EventTypeCode.ApplicationStart, true);
+		XDSAudit.logApplicationActivity(AtnaConfiguration.getInstance().getDeviceName(), EventTypeCode.ApplicationStart,
+				true);
 		log.info("XDSb Repository Interface Module started");
 
 		AdministrationService as = Context.getAdministrationService();
-		boolean async = Boolean.parseBoolean(as.getGlobalProperty(XDSbServiceConstants.XDS_REPOSITORY_DISCRETE_HANDLER_ASYNC));
+		boolean async = Boolean.parseBoolean(as.getGlobalProperty(
+				XDSbServiceConstants.XDS_REPOSITORY_DISCRETE_HANDLER_ASYNC));
+		int pollPeriod = Integer.parseInt(Context.getAdministrationService().getGlobalProperty(
+				XDSbServiceConstants.XDS_REPOSITORY_DISCRETE_HANDLER_ASYNC_POLL_PERIOD, "200"));
 
 		if (async) {
-			Integer maxTasks = Integer.parseInt(as.getGlobalProperty(XDSbServiceConstants.XDS_REPOSITORY_DISCRETE_HANDLER_ASYNC_MAX_TASKS));
+			Integer maxTasks = Integer.parseInt(as.getGlobalProperty(
+					XDSbServiceConstants.XDS_REPOSITORY_DISCRETE_HANDLER_ASYNC_MAX_TASKS));
+			ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(maxTasks);
+			// for each thread schedule a recurring task
 			for (int i = 0; i < maxTasks; i++) {
-				new DiscreteDataProcessorTask().start();
+				scheduledExecutorService.scheduleAtFixedRate(new DiscreteDataProcessorTask(), pollPeriod, pollPeriod,
+						TimeUnit.MILLISECONDS);
 			}
 		}
 	}
@@ -88,7 +101,8 @@ public class XDSbRepositoryInterfaceActivator implements ModuleActivator {
 	public void stopped() {
 
 		XDSAudit.setAuditLogger(Context.getService(AtnaAuditService.class).getLogger());
-		XDSAudit.logApplicationActivity(AtnaConfiguration.getInstance().getDeviceName(), EventTypeCode.ApplicationStop, true);
+		XDSAudit.logApplicationActivity(AtnaConfiguration.getInstance().getDeviceName(), EventTypeCode.ApplicationStop,
+				true);
 		log.info("XDSb Repository Interface Module stopped");
 	}
 		
