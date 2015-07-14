@@ -9,6 +9,7 @@ import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
 import org.dcm4chee.xds2.infoset.rim.SubmitObjectsRequest;
 import org.openmrs.api.OpenmrsService;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
+import org.openmrs.module.shr.contenthandler.api.ContentHandlerException;
 import org.springframework.transaction.annotation.Transactional;
 
 public interface XDSbService extends OpenmrsService {
@@ -48,5 +49,5 @@ public interface XDSbService extends OpenmrsService {
 	/**
 	 * Processes an XDS.b Provide and register document request
 	 */
-	RegistryResponseType provideAndRegisterDocumentSetB(ProvideAndRegisterDocumentSetRequestType request) throws XDSException;
+	RegistryResponseType provideAndRegisterDocumentSetB(ProvideAndRegisterDocumentSetRequestType request) throws XDSException, ContentHandlerException;
 }
