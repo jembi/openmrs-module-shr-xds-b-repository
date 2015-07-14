@@ -7,13 +7,13 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public interface XDSbDAO {
 	
-	public void registerDocument(String docId, Class<? extends ContentHandler> contentHandler);
+	void registerDocument(String docId, Class<? extends ContentHandler> contentHandler);
 	
-	public Class<? extends ContentHandler> getDocumentHandlerClass(String documentUniqueId) throws ClassNotFoundException;
+	Class<? extends ContentHandler> getDocumentHandlerClass(String documentUniqueId) throws ClassNotFoundException;
 
-	public QueueItem queueDiscreteDataProcessing(QueueItem qi);
+	QueueItem queueDiscreteDataProcessing(QueueItem qi);
 
-	public QueueItem dequeueNextDiscreteDataForProcessing();
+	QueueItem dequeueNextDiscreteDataForProcessing();
 
-	public QueueItem updateQueueItem(QueueItem qi);
+	QueueItem updateQueueItem(QueueItem qi);
 }

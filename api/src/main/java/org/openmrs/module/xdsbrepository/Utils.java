@@ -3,9 +3,6 @@ package org.openmrs.module.xdsbrepository;
 import org.openmrs.api.AdministrationService;
 import org.openmrs.api.context.Context;
 
-/**
- * Created by ryan on 2015/06/19.
- */
 public class Utils {
 
     /**

@@ -97,7 +97,7 @@
 	<globalProperty>
 		<property>${project.parent.artifactId}.discreteHandler.asyncPollingPeriod</property>
 		<description>This property specifies the polling time in ms to pickup new discrete data in the queue for async processing.</description>
-		<defaultValue>200</defaultValue>
+		<defaultValue>100</defaultValue>
 	</globalProperty>
 	<globalProperty>
 		<property>${project.parent.artifactId}.discreteHandler.asyncMaxTasks</property>

@@ -37,6 +37,8 @@ import java.util.concurrent.TimeUnit;
  * This class contains the logic that is run every time this module is either started or stopped.
  */
 public class XDSbRepositoryInterfaceActivator implements ModuleActivator {
+
+	private ScheduledExecutorService scheduledExecutorService;
 	
 	protected Log log = LogFactory.getLog(getClass());
 		
@@ -74,7 +76,7 @@ public class XDSbRepositoryInterfaceActivator implements ModuleActivator {
 		boolean async = Boolean.parseBoolean(as.getGlobalProperty(
 				XDSbServiceConstants.XDS_REPOSITORY_DISCRETE_HANDLER_ASYNC));
 		int pollPeriod = Integer.parseInt(Context.getAdministrationService().getGlobalProperty(
-				XDSbServiceConstants.XDS_REPOSITORY_DISCRETE_HANDLER_ASYNC_POLL_PERIOD, "200"));
+				XDSbServiceConstants.XDS_REPOSITORY_DISCRETE_HANDLER_ASYNC_POLL_PERIOD, "100"));
 
 		if (async) {
 			Integer maxTasks = Integer.parseInt(as.getGlobalProperty(
@@ -82,7 +84,7 @@ public class XDSbRepositoryInterfaceActivator implements ModuleActivator {
 			ScheduledExecutorService scheduledExecutorService = Executors.newScheduledThreadPool(maxTasks);
 			// for each thread schedule a recurring task
 			for (int i = 0; i < maxTasks; i++) {
-				scheduledExecutorService.scheduleAtFixedRate(new DiscreteDataProcessorTask(), pollPeriod, pollPeriod,
+				scheduledExecutorService.scheduleWithFixedDelay(new DiscreteDataProcessorTask(), pollPeriod, pollPeriod,
 						TimeUnit.MILLISECONDS);
 			}
 		}
@@ -93,6 +95,17 @@ public class XDSbRepositoryInterfaceActivator implements ModuleActivator {
 	 */
 	public void willStop() {
 		log.info("Stopping XDSb Repository Interface Module");
+
+		if (scheduledExecutorService != null) {
+			try {
+				if (!scheduledExecutorService.awaitTermination(60, TimeUnit.SECONDS)) {
+					// timeout waiting for tasks to complete
+					log.error("Timeout waiting for discrete data processor tasks to terminate before module shutdown.");
+				}
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
 	}
 	
 	/**

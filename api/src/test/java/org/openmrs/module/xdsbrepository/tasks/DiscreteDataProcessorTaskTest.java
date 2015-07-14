@@ -63,6 +63,8 @@ public class DiscreteDataProcessorTaskTest extends BaseModuleContextSensitiveTes
         // mock out discrete handler
         ContentHandler mockHandler = mock(ContentHandler.class);
         when(mockHandler.cloneHandler()).thenReturn(mockHandler);
+        // deregister any handler that may already exist
+        chs.deregisterContentHandler(typeCode, formatCode);
         chs.registerContentHandler(typeCode, formatCode, mockHandler);
 
         // mock out unstructured handler

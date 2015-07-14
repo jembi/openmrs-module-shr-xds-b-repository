@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<dataset>
+	<person person_id="2" gender="F" dead="false" creator="1"
+		date_created="2005-01-01 00:00:00.0" voided="false"
+		uuid="4f8b3970-7407-429c-a903-9704785519ef" />
+	<person person_id="3" gender="M" dead="false" creator="1"
+		date_created="2005-01-01 00:00:00.0" voided="false"
+		uuid="d1b25df1-b9b8-4dee-8457-cbb2250377bd" />
+	<person_name person_name_id="2" preferred="true" person_id="2"
+		given_name="Jane" middle_name="Sarah" family_name="Doe" creator="1"
+		date_created="2005-01-01 00:00:00.0" voided="false"
+		uuid="24865f9b-1943-45ae-81ba-7925dece6c84" />
+	<person_name person_name_id="3" preferred="true" person_id="3"
+		given_name="Jack" family_name="Provider - omrs" creator="1"
+		date_created="2005-01-01 00:00:00.0" voided="false"
+		uuid="cd489f8d-1733-444a-9df4-6f39b145b134" />
+	<patient patient_id="2" creator="1" date_created="2005-01-01 00:00:00.0"
+		voided="false" />
+	<patient_identifier patient_identifier_id="1"
+		patient_id="2" identifier="1111111111" identifier_type="1" preferred="1"
+		location_id="1" creator="1" date_created="2005-01-01 00:00:00.0"
+		voided="false" uuid="bcad3a53-2f78-4db1-9fea-0164156dbbe8" />
+	<patient_identifier_type
+		patient_identifier_type_id="1" name="1.2.3" description="Test description"
+		check_digit="false" validator="" creator="1" date_created="2005-01-01 00:00:00.0"
+		required="false" retired="false" uuid="569466d4-5eb1-497a-b0bf-c95602ff5442" />
+	<provider provider_id="1" identifier="pro222" name="Jack Provider - omrs"
+		person_id="3" creator="1" date_created="2005-01-01 00:00:00.0"
+		retired="false" uuid="c2299800-cca9-11e0-9572-0800200c9a66" />
+	<encounter_role encounter_role_id="2" name="Nurse"
+		creator="1" date_created="2005-01-01 00:00:00.0" retired="false"
+		uuid="27eef570-1405-4ffb-88f5-570f31630734" />
+	<encounter_type encounter_type_id="1" name="History and Physical"
+		creator="1" date_created="2005-01-01 00:00:00.0" retired="false"
+		uuid="27eef570-1405-4ffb-88f5-570f31630734" />
+</dataset>

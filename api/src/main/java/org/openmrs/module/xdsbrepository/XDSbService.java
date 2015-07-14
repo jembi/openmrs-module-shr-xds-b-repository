@@ -3,6 +3,8 @@ package org.openmrs.module.xdsbrepository;
 import java.net.MalformedURLException;
 import java.util.Map;
 
+import org.dcm4chee.xds2.common.exception.XDSException;
+import org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType;
 import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
 import org.dcm4chee.xds2.infoset.rim.SubmitObjectsRequest;
 import org.openmrs.api.OpenmrsService;
@@ -10,7 +12,6 @@ import org.openmrs.module.shr.contenthandler.api.ContentHandler;
 import org.openmrs.module.xdsbrepository.model.QueueItem;
 import org.springframework.transaction.annotation.Transactional;
 
-@Transactional
 public interface XDSbService extends OpenmrsService {
 
     /**
@@ -23,8 +24,8 @@ public interface XDSbService extends OpenmrsService {
      * @throws Exception
      * @throws MalformedURLException
      */
-    public RegistryResponseType registerDocument(String documentUniqueId, Class<? extends ContentHandler> contentHandler, SubmitObjectsRequest submitObjectRequest) throws Exception;
-	
+    RegistryResponseType registerDocument(String documentUniqueId, Class<? extends ContentHandler> contentHandler, SubmitObjectsRequest submitObjectRequest) throws XDSException;
+
 	/**
 	 * Registers documents with the configured XDS.b registry and stores a mapping
 	 * from documentUniqueId to the supplied ContentHandler class for each document.
@@ -34,7 +35,7 @@ public interface XDSbService extends OpenmrsService {
 	 * @throws Exception 
 	 * @throws MalformedURLException 
 	 */
-	public RegistryResponseType registerDocuments(Map<String, Class<? extends ContentHandler>> contentHandlers, SubmitObjectsRequest submitObjectRequest) throws Exception;
+	RegistryResponseType registerDocuments(Map<String, Class<? extends ContentHandler>> contentHandlers, SubmitObjectsRequest submitObjectRequest) throws XDSException;
 	
 	/**
 	 * Fetches the content handler class that can retrieve the given documentUniqueId.
@@ -43,19 +44,24 @@ public interface XDSbService extends OpenmrsService {
 	 * @return The class of the content handler that can retrieve this document.
 	 * @throws ClassNotFoundException if the found class cannot be loaded
 	 */
-	public Class<? extends ContentHandler> getDocumentHandlerClass(String documentUniqueId) throws ClassNotFoundException;
+	Class<? extends ContentHandler> getDocumentHandlerClass(String documentUniqueId) throws ClassNotFoundException;
 
+	/**
+	 * Processes an XDS.b Provide and register document request
+	 */
+	RegistryResponseType provideAndRegisterDocumentSetB(ProvideAndRegisterDocumentSetRequestType request) throws XDSException;
+	
 	/**
 	 * @param qi - the QueueItem to add to  the queue.
 	 * @return The QueueItem that was saved to the queue.
 	 */
-	public QueueItem queueDiscreteDataProcessing(QueueItem qi);
+	QueueItem queueDiscreteDataProcessing(QueueItem qi);
 
 	/**
-	 * @param qi - return the oldest queue item for processing.
+	 * Returns the oldest queue item for processing.
 	 * @return The QueueItem to be processed.
 	 */
-	public QueueItem dequeueNextDiscreteDataForProcessing();
+	QueueItem dequeueNextDiscreteDataForProcessing();
 
 	/**
 	 * Completes this queue item (mark it as done). You must also indicate if the item was processed succeefully or not.
@@ -63,5 +69,5 @@ public interface XDSbService extends OpenmrsService {
 	 * @param successful - a boolean to idicate if the processing was successful or not
 	 * @return the updated QueueItem
 	 */
-	public QueueItem completeQueueItem(QueueItem qi, boolean successful);
+	QueueItem completeQueueItem(QueueItem qi, boolean successful);
 }

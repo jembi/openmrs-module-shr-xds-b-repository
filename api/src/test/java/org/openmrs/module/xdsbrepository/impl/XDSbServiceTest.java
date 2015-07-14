@@ -1,20 +1,29 @@
 package org.openmrs.module.xdsbrepository.impl;
 
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
+import org.dcm4chee.xds2.common.XDSConstants;
 import org.dcm4chee.xds2.common.exception.XDSException;
 import org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType;
+import org.dcm4chee.xds2.infoset.rim.ExtrinsicObjectType;
 import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
+import org.dcm4chee.xds2.infoset.util.InfosetUtil;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.openmrs.*;
+import org.openmrs.api.AdministrationService;
+import org.openmrs.api.EncounterService;
+import org.openmrs.api.PatientService;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.shr.contenthandler.api.CodedValue;
 import org.openmrs.module.shr.contenthandler.api.Content;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
+import org.openmrs.module.shr.contenthandler.api.ContentHandlerService;
 import org.openmrs.module.xdsbrepository.XDSbService;
 import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
+import org.openmrs.module.xdsbrepository.exceptions.UnsupportedGenderException;
 import org.openmrs.module.xdsbrepository.db.hibernate.HibernateXDSbDAO;
 import org.openmrs.module.xdsbrepository.model.QueueItem;
 import org.openmrs.test.BaseModuleContextSensitiveTest;
@@ -26,7 +35,10 @@ import javax.xml.bind.Unmarshaller;
 import java.io.FileNotFoundException;
 import java.io.InputStream;
 import java.net.URL;
+import java.text.SimpleDateFormat;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -35,6 +47,7 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 import static org.springframework.util.Assert.notNull;
+import static org.mockito.Mockito.*;
 
 public class XDSbServiceTest extends BaseModuleContextSensitiveTest {
 
@@ -71,9 +84,19 @@ public class XDSbServiceTest extends BaseModuleContextSensitiveTest {
     }
 
     @Before
-    public void setup() {
-        GlobalProperty gp = new GlobalProperty(XDSbServiceConstants.XDS_REGISTRY_URL_GP, "http://localhost:8089/ws/xdsregistry");
-        Context.getAdministrationService().saveGlobalProperty(gp);
+    public void setup() throws Exception {
+        executeDataSet("src/test/resources/provideAndRegRequest-dataset.xml");
+
+        AdministrationService as = Context.getAdministrationService();
+
+        GlobalProperty gp1 = new GlobalProperty(XDSbServiceConstants.REPOSITORY_UNIQUE_ID_GP, "1.19.6.24.109.42.1.5.1");
+        as.saveGlobalProperty(gp1);
+        GlobalProperty gp2 = new GlobalProperty(XDSbServiceConstants.XDS_REPOSITORY_AUTOCREATE_PATIENTS, "true");
+        as.saveGlobalProperty(gp2);
+        GlobalProperty gp3 = new GlobalProperty("shr.contenthandler.cacheConceptsByName", "false");
+        as.saveGlobalProperty(gp3);
+        GlobalProperty gp4 = new GlobalProperty(XDSbServiceConstants.XDS_REGISTRY_URL_GP, "http://localhost:8089/ws/xdsregistry");
+        as.saveGlobalProperty(gp4);
     }
 
 	@Test
@@ -318,6 +341,366 @@ public class XDSbServiceTest extends BaseModuleContextSensitiveTest {
         assertEquals(QueueItem.Status.FAILED, qi.getStatus());
         assertEquals("Will fail", qi.getDocUniqueId());
     }
+
+    @Test
+    public void stringifyRoleProvidersMap_shouldReturnAStringRepresentationOfTheMap() {
+        XDSbServiceImpl service = new XDSbServiceImpl();
+        Map<EncounterRole, Set<Provider>> providersByRole = new HashMap<EncounterRole, Set<Provider>>();
+
+        Provider p1 = new Provider();
+        p1.setId(1);
+        Provider p2 = new Provider();
+        p2.setId(2);
+        Provider p3 = new Provider();
+        p3.setId(3);
+
+        Set set1 = new HashSet();
+        set1.add(p1);
+        set1.add(p2);
+
+        Set set2 = new HashSet();
+        set2.add(p3);
+
+        EncounterRole er1 = new EncounterRole();
+        er1.setId(1);
+
+        EncounterRole er2 = new EncounterRole();
+        er2.setId(2);
+
+        providersByRole.put(er1, set1);
+        providersByRole.put(er2, set2);
+
+        String s = service.stringifyRoleProvidersMap(providersByRole);
+
+        // should be 2:3|1:2,1 or equivalent
+        assertTrue(s.contains("2:3"));
+        assertTrue(s.contains("1:"));
+        assertTrue(s.contains("2,1") || s.contains("1,2"));
+    }
+
+    @Test
+    public void findOrCreatePatient_shouldCreateANewPatientIfNoPatientCanBeFound() throws Exception {
+        XDSbServiceImpl service = new XDSbServiceImpl();
+        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest2.xml");
+        List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+        ExtrinsicObjectType eo = extrinsicObjects.get(0);
+
+
+        Patient pat;
+        pat = service.findOrCreatePatient(eo);
+
+        // check patient was created correctly
+        assertNotNull(pat);
+        assertEquals("M", pat.getGender());
+
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
+        String dob = sdf.format(pat.getBirthdate());
+        assertEquals("19560527", dob);
+
+        assertEquals("John", pat.getGivenName());
+        assertEquals("Doe", pat.getFamilyName());
+
+        PersonAddress pa = pat.getAddresses().iterator().next();
+        assertEquals("100 Main St", pa.getAddress1());
+        assertEquals("Metropolis", pa.getCityVillage());
+        assertEquals("Il", pa.getStateProvince());
+        assertEquals("44130", pa.getPostalCode());
+        assertEquals("USA", pa.getCountry());
+
+        // check that the needed identifier type was created
+        PatientService ps = Context.getPatientService();
+        PatientIdentifierType patientIdentifierType = ps.getPatientIdentifierTypeByName("1.2.4");
+        assertNotNull(patientIdentifierType);
+
+
+    }
+
+    @Test
+    public void findOrCreatePatient_shouldCreateANewPatientWhenNoPatientNameIsAvailable() throws Exception {
+        XDSbServiceImpl service = new XDSbServiceImpl();
+        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest_noPatientName.xml");
+        List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+        ExtrinsicObjectType eo = extrinsicObjects.get(0);
+
+
+        Patient pat;
+        pat = service.findOrCreatePatient(eo);
+
+        // check patient was created correctly
+        assertNotNull(pat);
+        assertEquals("M", pat.getGender());
+
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyyMMdd");
+        String dob = sdf.format(pat.getBirthdate());
+        assertEquals("19560527", dob);
+
+        assertEquals("*", pat.getGivenName());
+        assertEquals("*", pat.getFamilyName());
+
+        PersonAddress pa = pat.getAddresses().iterator().next();
+        assertEquals("100 Main St", pa.getAddress1());
+        assertEquals("Metropolis", pa.getCityVillage());
+        assertEquals("Il", pa.getStateProvince());
+        assertEquals("44130", pa.getPostalCode());
+        assertEquals("USA", pa.getCountry());
+
+        // check that the needed identifier type was created
+        PatientService ps = Context.getPatientService();
+        PatientIdentifierType patientIdentifierType = ps.getPatientIdentifierTypeByName("1.2.4");
+        assertNotNull(patientIdentifierType);
+    }
+
+    @Test
+    public void findOrCreatePatient_shouldFindAnExistingPatient() throws Exception {
+        XDSbServiceImpl service = new XDSbServiceImpl();
+        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest1.xml");
+        List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+        ExtrinsicObjectType eo = extrinsicObjects.get(0);
+
+        Patient pat;
+        pat = service.findOrCreatePatient(eo);
+
+        assertNotNull(pat);
+        assertEquals("F", pat.getGender());
+
+        assertEquals("Jane", pat.getGivenName());
+        assertEquals("Doe", pat.getFamilyName());
+        // This is a name that only OpenMRS knows about
+        assertEquals("Sarah", pat.getMiddleName());
+    }
+
+    @Test
+    public void findOrCreatePatient_shouldThrowUnsupportedGenderException() throws Exception {
+        XDSbServiceImpl service = new XDSbServiceImpl();
+        try {
+            ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest-unsupported-gender.xml");
+            List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+            ExtrinsicObjectType eo = extrinsicObjects.get(0);
+
+            service.findOrCreatePatient(eo);
+
+            fail("Should have thrown exception");
+        } catch (UnsupportedGenderException e) {
+            // expected
+        }
+    }
+
+    public void testFindOrCreatePatientWithPatientId(String id) throws Exception {
+        XDSbServiceImpl service = new XDSbServiceImpl();
+        try {
+            ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest1.xml");
+            List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+            ExtrinsicObjectType eo = extrinsicObjects.get(0);
+            InfosetUtil.setExternalIdentifierValue(XDSConstants.UUID_XDSDocumentEntry_patientId, id, eo);
+
+            service.findOrCreatePatient(eo);
+
+            fail("Should have thrown exception");
+        } catch (XDSException e) {
+            // expected
+        }
+    }
+
+    @Test
+    public void findOrCreatePatient_shouldThrowXDSExceptionIfPatientIdHasNoAssigningAuthority() throws Exception {
+        testFindOrCreatePatientWithPatientId("12345");
+    }
+
+    @Test
+    public void findOrCreatePatient_shouldThrowXDSExceptionIfPatientIdHasNoAssigningAuthority2() throws Exception {
+        testFindOrCreatePatientWithPatientId("12345^^^^stuff");
+    }
+
+    @Test
+    public void findOrCreatePatient_shouldThrowXDSExceptionIfPatientIdEmpty() throws Exception {
+        testFindOrCreatePatientWithPatientId("^^^&1.2.3.4.5&ISO");
+    }
+
+    @Test
+    public void findOrCreatePatient_shouldThrowXDSExceptionIfPatientIdIsInvalid() throws Exception {
+        testFindOrCreatePatientWithPatientId("this is a bad id");
+    }
+
+    @Test
+    public void findOrCreatePatient_shouldThrowXDSExceptionIfAssigningAuthorityIdEmpty() throws Exception {
+        testFindOrCreatePatientWithPatientId("12345^^^test&&ISO");
+    }
+
+    @Test
+    public void findOrCreateProvider_shouldCreateNewProvidersAndEncounterRolesIfNoneCanBeFound() throws Exception {
+        XDSbServiceImpl service = new XDSbServiceImpl();
+        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest1.xml");
+        List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+        ExtrinsicObjectType eo = extrinsicObjects.get(0);
+
+        Map<EncounterRole, Set<Provider>> providersByRole = service.findOrCreateProvidersByRole(eo);
+
+        for (EncounterRole role : providersByRole.keySet()) {
+            Set<Provider> providers = providersByRole.get(role);
+            if (role.getName().equals("Attending")) {
+                assertEquals(1, providers.size());
+                Provider provider = providers.iterator().next();
+                assertEquals("Gerald Smitty", provider.getName());
+            } else if (role.getName().equals("Primary Surgeon")) {
+                assertEquals(2, providers.size());
+                boolean sherryFound = false;
+                boolean terryFound = false;
+                for (Provider provider : providers) {
+                    if (provider.getName().equals("Sherry Dopplemeyer")) {
+                        sherryFound = true;
+                    }
+                    if (provider.getName().equals("Terry Doppleganger")) {
+                        terryFound = true;
+                    }
+                }
+                if (!sherryFound && terryFound) {
+                    fail("Sherry or Terry was not found is the resulting set.");
+                }
+            } else {
+                fail("An unexpected role was found.");
+            }
+        }
+    }
+
+    @Test
+    public void findOrCreateProvider_shouldFindAnExistingProviderAndEncounterRole() throws Exception {
+        XDSbServiceImpl service = new XDSbServiceImpl();
+        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest2.xml");
+        List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+        ExtrinsicObjectType eo = extrinsicObjects.get(0);
+
+        Map<EncounterRole, Set<Provider>> providersByRole = service.findOrCreateProvidersByRole(eo);
+
+        boolean jackFound = false;
+        for (EncounterRole role : providersByRole.keySet()) {
+            Set<Provider> providers = providersByRole.get(role);
+            if (role.getName().equals("Nurse")) {
+                assertEquals(1, providers.size());
+                Provider provider = providers.iterator().next();
+                assertEquals("Jack Provider - omrs", provider.getName());
+                jackFound = true;
+
+                // test that the encounter role is the one defined in the dataset not a newly created one
+                assertEquals(new Integer(2), role.getId());
+            }
+        }
+
+        if (!jackFound) {
+            fail("Provider 'Jack Provider' was not found in the resuting map.");
+        }
+    }
+
+    @Test
+    public void findOrCreateEncounterType_shouldFindAnExistingEncounterType() throws Exception {
+        XDSbServiceImpl service = new XDSbServiceImpl();
+        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest1.xml");
+        List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+        ExtrinsicObjectType eo = extrinsicObjects.get(0);
+
+        EncounterType encounterType = service.findOrCreateEncounterType(eo);
+
+        assertEquals(new Integer(1), encounterType.getId());
+    }
+
+    @Test
+    public void findOrCreateEncounterType_shouldCreateANewEncounterType() throws Exception {
+        XDSbServiceImpl service = new XDSbServiceImpl();
+        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest2.xml");
+        List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+        ExtrinsicObjectType eo = extrinsicObjects.get(0);
+
+        EncounterType encounterType = service.findOrCreateEncounterType(eo);
+
+        assertEquals("History and Physical - non existing", encounterType.getName());
+    }
+
+    @Test
+    public void storeDocument_shouldReturnTheDocumentUniqueId() throws Exception {
+        XDSbServiceImpl service = new XDSbServiceImpl();
+        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest1.xml");
+        List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+        ExtrinsicObjectType eo = extrinsicObjects.get(0);
+
+        String uniqueId;
+        uniqueId = service.storeDocument(eo, request);
+        assertEquals("2009.9.1.2455", uniqueId);
+
+    }
+
+    @SuppressWarnings("unchecked")
+    @Test
+    public void storeDocument_shouldCallARegisteredContentHandler() throws Exception {
+        PatientService ps = Context.getPatientService();
+        EncounterService es = Context.getEncounterService();
+
+        XDSbServiceImpl service = new XDSbServiceImpl();
+
+        ContentHandlerService chs = Context.getService(org.openmrs.module.shr.contenthandler.api.ContentHandlerService.class);
+
+        CodedValue typeCode = new CodedValue("testType", "testCodes", "Test Type");
+        CodedValue formatCode = new CodedValue("testFormat", "testCodes", "Test Format");
+
+        Content expectedContent = new Content("2009.9.1.2455", "My test document".getBytes(), typeCode, formatCode, "text/plain");
+
+        ContentHandler mockHandler = mock(ContentHandler.class);
+        when(mockHandler.cloneHandler()).thenReturn(mockHandler);
+        chs.registerContentHandler(typeCode, formatCode, mockHandler);
+
+        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest1.xml");
+        List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+        ExtrinsicObjectType eo = extrinsicObjects.get(0);
+
+        String uniqueId = service.storeDocument(eo, request);
+
+        assertEquals("2009.9.1.2455", uniqueId);
+        verify(mockHandler).saveContent(eq(ps.getPatient(2)), (Map<EncounterRole, Set<Provider>>) any(), eq(es.getEncounterType(1)), eq(expectedContent));
+    }
+
+    @Test
+    public void validateMetadata_shouldDoNothingWhenDocumentValid() throws Exception {
+        XDSbServiceImpl service = new XDSbServiceImpl();
+        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest1.xml");
+        List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+        ExtrinsicObjectType eo = extrinsicObjects.get(0);
+
+        service.validateMetadata(eo);
+    }
+
+    private void testValidateMetadata(String testDocument) throws Exception {
+        XDSbServiceImpl service = new XDSbServiceImpl();
+        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName(testDocument);
+        List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+        ExtrinsicObjectType eo = extrinsicObjects.get(0);
+
+        try {
+            service.validateMetadata(eo);
+            fail("Failed to throw XDSException");
+        } catch (XDSException ex) {
+            //expected
+        }
+    }
+
+    @Test
+    public void validateMetadata_shouldRejectWhenNoUniqueId() throws Exception {
+        testValidateMetadata("provideAndRegRequest_noUniqueId.xml");
+    }
+
+    @Test
+    public void validateMetadata_shouldRejectWhenNoClassCode() throws Exception {
+        testValidateMetadata("provideAndRegRequest_noClassCode.xml");
+    }
+
+    @Test
+    public void validateMetadata_shouldRejectWhenNoDocumentEntryPatientId() throws Exception {
+        testValidateMetadata("provideAndRegRequest_noDocumentEntryPatientId.xml");
+    }
+
+    @Test
+    public void validateMetadata_shouldRejectWhenNoSourcePatientId() throws Exception {
+        testValidateMetadata("provideAndRegRequest_noSourcePatientId.xml");
+    }
+
+
 
     public class TestContentHandler1 implements ContentHandler {
 
