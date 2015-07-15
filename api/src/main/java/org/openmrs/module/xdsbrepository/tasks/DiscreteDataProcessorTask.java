@@ -12,6 +12,7 @@ import org.openmrs.api.ProviderService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.shr.contenthandler.api.Content;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
+import org.openmrs.module.shr.contenthandler.api.ContentHandlerException;
 import org.openmrs.module.shr.contenthandler.api.ContentHandlerService;
 import org.openmrs.module.xdsbrepository.Utils;
 import org.openmrs.module.xdsbrepository.XDSbService;
@@ -48,7 +49,7 @@ public class DiscreteDataProcessorTask implements Runnable {
         }
     }
 
-    protected void processQueueItem(QueueItem queueItem) throws HydrateRoleProviderMapException {
+    protected void processQueueItem(QueueItem queueItem) throws HydrateRoleProviderMapException, ContentHandlerException {
         ContentHandlerService chs = Context.getService(ContentHandlerService.class);
         ContentHandler defaultHandler = chs.getDefaultUnstructuredHandler();
 

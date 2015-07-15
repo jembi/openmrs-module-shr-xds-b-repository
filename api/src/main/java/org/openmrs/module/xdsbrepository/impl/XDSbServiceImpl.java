@@ -19,10 +19,7 @@ import org.openmrs.api.context.Context;
 import org.openmrs.api.impl.BaseOpenmrsService;
 import org.openmrs.module.shr.atna.api.AtnaAuditService;
 import org.openmrs.module.shr.contenthandler.UnstructuredDataHandler;
-import org.openmrs.module.shr.contenthandler.api.CodedValue;
-import org.openmrs.module.shr.contenthandler.api.Content;
-import org.openmrs.module.shr.contenthandler.api.ContentHandler;
-import org.openmrs.module.shr.contenthandler.api.ContentHandlerService;
+import org.openmrs.module.shr.contenthandler.api.*;
 import org.openmrs.module.xdsbrepository.Identifier;
 import org.openmrs.module.xdsbrepository.XDSbService;
 import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
@@ -133,9 +130,9 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 	}
 
 
-	@Transactional(readOnly = false, rollbackFor = XDSException.class)
+	@Transactional(readOnly = false, rollbackFor = {XDSException.class, ContentHandlerException.class} )
 	@Override
-	public RegistryResponseType provideAndRegisterDocumentSetB(ProvideAndRegisterDocumentSetRequestType request) throws XDSException {
+	public RegistryResponseType provideAndRegisterDocumentSetB(ProvideAndRegisterDocumentSetRequestType request) throws XDSException, ContentHandlerException {
 		boolean wasSuccess = false;
 
 		// Get the required elements for auditing
@@ -307,7 +304,7 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 	/**
 	 * Store a document and return its UUID
 	 */
-	protected String storeDocument(ExtrinsicObjectType eot, ProvideAndRegisterDocumentSetRequestType request) throws JAXBException, XDSException, UnsupportedGenderException {
+	protected String storeDocument(ExtrinsicObjectType eot, ProvideAndRegisterDocumentSetRequestType request) throws JAXBException, XDSException, UnsupportedGenderException, ContentHandlerException {
 
 		String docId = eot.getId();
 		Map<String, ProvideAndRegisterDocumentSetRequestType.Document> docs = InfosetUtil.getDocuments(request);
@@ -536,18 +533,32 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 	 */
 	private Provider createProvider(String[] xcnComponents) {
 		Provider pro;
-		// create a provider
+		Person person;
+		PersonName name;
+		Set names;
+
+		// create a person and provider
 		pro = new Provider();
+		person = new Person();
+
+		names = new TreeSet<PersonName>();
+
 		pro.setIdentifier(xcnComponents[0]);
 
 		if (xcnComponents.length >= 3 && !xcnComponents[2].isEmpty() && !xcnComponents[1].isEmpty()) {
 			// if there are name components
-			StringBuffer sb = new StringBuffer();
-			sb.append(xcnComponents[2] + " " + xcnComponents[1]);
-			pro.setName(sb.toString());
+			name = new PersonName(xcnComponents[2], "", xcnComponents[1]);
+			names.add(name);
+			person.setNames(names);
+			person = Context.getPersonService().savePerson(person);
+			pro.setPerson(person);
 		} else {
 			// set the name to the id as that's add we have?
-			pro.setName(xcnComponents[0]);
+			name = new PersonName(xcnComponents[0], "", "");
+			names.add(name);
+			person.setNames(names);
+			person = Context.getPersonService().savePerson(person);
+			pro.setPerson(person);
 		}
 
 		return pro;

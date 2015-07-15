@@ -1,11 +1,11 @@
 package org.openmrs.module.xdsbrepository.db.hibernate;
 
 import org.hibernate.Query;
-import org.hibernate.SessionFactory;
 import org.openmrs.api.context.Context;
+import org.openmrs.api.db.hibernate.DbSessionFactory;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
-import org.openmrs.module.xdsbrepository.model.DocHandlerMapping;
 import org.openmrs.module.xdsbrepository.db.XDSbDAO;
+import org.openmrs.module.xdsbrepository.model.DocHandlerMapping;
 import org.openmrs.module.xdsbrepository.model.QueueItem;
 
 import java.util.List;
@@ -13,7 +13,7 @@ import java.util.List;
 
 public class HibernateXDSbDAO implements XDSbDAO {
 
-    private SessionFactory sessionFactory;
+    private DbSessionFactory sessionFactory;
 
 	@Override
 	public void registerDocument(String docId,
@@ -60,11 +60,11 @@ public class HibernateXDSbDAO implements XDSbDAO {
 		return qi;
 	}
 
-	public SessionFactory getSessionFactory() {
+    public DbSessionFactory getSessionFactory() {
         return sessionFactory;
     }
 
-    public void setSessionFactory(SessionFactory sessionFactory) {
+    public void setSessionFactory(DbSessionFactory sessionFactory) {
         this.sessionFactory = sessionFactory;
     }
 }

@@ -19,6 +19,7 @@ import org.openmrs.api.context.Context;
 import org.openmrs.module.shr.atna.api.AtnaAuditService;
 import org.openmrs.module.shr.contenthandler.api.Content;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
+import org.openmrs.module.shr.contenthandler.api.ContentHandlerException;
 import org.openmrs.module.shr.contenthandler.api.ContentHandlerService;
 import org.openmrs.module.xdsbrepository.Utils;
 import org.openmrs.module.xdsbrepository.XDSbService;
@@ -63,6 +64,17 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 
         try {
             response = Context.getService(XDSbService.class).provideAndRegisterDocumentSetB(request);
+
+        } catch (ContentHandlerException ex) {
+            response.setStatus(XDSConstants.XDS_B_STATUS_FAILURE);
+
+            if (ex.hasDetails()) {
+                for (ContentHandlerException.Detail detail : ex.getDetails()) {
+                    XDSUtil.addError(response, new XDSException(XDSException.XDS_ERR_REPOSITORY_ERROR, detail.toString(), ex));
+                }
+            } else {
+                XDSUtil.addError(response, new XDSException(XDSException.XDS_ERR_REPOSITORY_ERROR, ex.getMessage(), ex));
+            }
 
         } catch (XDSException ex) {
             processExceptionForResponse(response, ex);

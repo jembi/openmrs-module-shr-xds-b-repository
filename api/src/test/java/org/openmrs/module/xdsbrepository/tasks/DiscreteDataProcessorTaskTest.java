@@ -96,8 +96,8 @@ public class DiscreteDataProcessorTaskTest extends BaseModuleContextSensitiveTes
         Map<EncounterRole, Set<Provider>> encounterRoleSetMap = processor.hydrateRoleProviderMap("311:301,302|312:303");
         assertEquals(2, encounterRoleSetMap.size());
         Iterator<EncounterRole> iterator = encounterRoleSetMap.keySet().iterator();
-        assertEquals(2, encounterRoleSetMap.get(iterator.next()).size());
         assertEquals(1, encounterRoleSetMap.get(iterator.next()).size());
+        assertEquals(2, encounterRoleSetMap.get(iterator.next()).size());
     }
 
     @Test
