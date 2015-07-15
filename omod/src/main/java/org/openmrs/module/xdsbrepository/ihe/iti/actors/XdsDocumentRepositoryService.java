@@ -13,10 +13,10 @@ public interface XdsDocumentRepositoryService {
 	/**
 	 * Simple provide and register document
 	 */
-	public RegistryResponseType provideAndRegisterDocumentSetB(ProvideAndRegisterDocumentSetRequestType request);
+	RegistryResponseType provideAndRegisterDocumentSetB(ProvideAndRegisterDocumentSetRequestType request);
 	
 	/**
 	 * Retrieve document set
 	 */
-	public RetrieveDocumentSetResponseType retrieveDocumentSetB(RetrieveDocumentSetRequestType request);
+	RetrieveDocumentSetResponseType retrieveDocumentSetB(RetrieveDocumentSetRequestType request);
 }

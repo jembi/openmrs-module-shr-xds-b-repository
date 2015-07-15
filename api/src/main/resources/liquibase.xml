@@ -37,5 +37,32 @@
             </column>
         </modifyColumn>
     </changeSet>
+
+    <changeSet id="xdsbrepository-2015-06-18-13:33" author="rcrichton">
+        <createTable tableName="xdsbrepository_queue">
+            <column name="id" type="integer" autoIncrement="true">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="patient_id" type="integer">
+                <constraints nullable="false"/>
+            </column>
+            <column name="role_provider_map" type="varchar(255)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="encounter_type_id" type="integer">
+                <constraints nullable="false"/>
+            </column>
+            <column name="doc_id" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="varchar(50)">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_added" type="datetime">
+                <constraints nullable="false"/>
+            </column>
+            <column name="date_updated" type="datetime"/>
+        </createTable>
+    </changeSet>
  
 </databaseChangeLog>

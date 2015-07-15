@@ -1,8 +1,5 @@
 package org.openmrs.module.xdsbrepository;
 
-import java.net.MalformedURLException;
-import java.util.Map;
-
 import org.dcm4chee.xds2.common.exception.XDSException;
 import org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType;
 import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
@@ -10,7 +7,10 @@ import org.dcm4chee.xds2.infoset.rim.SubmitObjectsRequest;
 import org.openmrs.api.OpenmrsService;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
 import org.openmrs.module.shr.contenthandler.api.ContentHandlerException;
-import org.springframework.transaction.annotation.Transactional;
+import org.openmrs.module.xdsbrepository.model.QueueItem;
+
+import java.net.MalformedURLException;
+import java.util.Map;
 
 public interface XDSbService extends OpenmrsService {
 
@@ -50,4 +50,25 @@ public interface XDSbService extends OpenmrsService {
 	 * Processes an XDS.b Provide and register document request
 	 */
 	RegistryResponseType provideAndRegisterDocumentSetB(ProvideAndRegisterDocumentSetRequestType request) throws XDSException, ContentHandlerException;
+	
+	/**
+	 * @param qi - the QueueItem to add to  the queue.
+	 * @return The QueueItem that was saved to the queue.
+	 */
+	QueueItem queueDiscreteDataProcessing(QueueItem qi);
+
+	/**
+	 * Returns the oldest queue item for processing.
+	 * @return The QueueItem to be processed.
+	 */
+	QueueItem dequeueNextDiscreteDataForProcessing();
+
+	/**
+	 * Completes this queue item (mark it as done). You must also indicate if the item was processed succeefully or not.
+	 * @param qi - the QueueItem to complete.
+	 * @param successful - a boolean to idicate if the processing was successful or not
+	 * @return the updated QueueItem
+	 */
+	QueueItem completeQueueItem(QueueItem qi, boolean successful);
+
 }

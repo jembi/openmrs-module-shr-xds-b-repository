@@ -26,6 +26,7 @@ import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
 import org.openmrs.module.xdsbrepository.db.XDSbDAO;
 import org.openmrs.module.xdsbrepository.exceptions.CXParseException;
 import org.openmrs.module.xdsbrepository.exceptions.UnsupportedGenderException;
+import org.openmrs.module.xdsbrepository.model.QueueItem;
 import org.springframework.transaction.annotation.Transactional;
 
 import javax.xml.bind.JAXBException;
@@ -36,12 +37,13 @@ import java.security.NoSuchAlgorithmException;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.Date;
+import java.util.Map;
 
 @Transactional
 public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 	
 	protected final Log log = LogFactory.getLog(this.getClass());
-
 
 	private static final String SLOT_NAME_REPOSITORY_UNIQUE_ID = "repositoryUniqueId";
 
@@ -157,7 +159,7 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 			// Save each document
 			if (response.getStatus().equals(XDSConstants.XDS_B_STATUS_SUCCESS)) {
 				for (ExtrinsicObjectType eot : extrinsicObjects) {
-					contentHandlers.put(this.storeDocument(eot, request), UnstructuredDataHandler.class);
+					this.storeDocument(eot, request);
 				}
 			}
 
@@ -335,12 +337,52 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 
 		// always send to the default unstructured data handler
 		defaultHandler.saveContent(patient, providersByRole, encounterType, content);
-		// If another handler exists send to that as well
+		// If another handler exists send to that as well, do this async if config is set
 		if (discreteHandler != null) {
-			discreteHandler.saveContent(patient, providersByRole, encounterType, content);
+			if (Context.getAdministrationService().getGlobalProperty(XDSbServiceConstants.XDS_REPOSITORY_DISCRETE_HANDLER_ASYNC, "false").equalsIgnoreCase("true")) {
+				QueueItem qi = new QueueItem();
+				qi.setDocUniqueId(docUniqueId);
+				qi.setPatient(patient);
+				qi.setEncounterType(encounterType);
+				String rolesProvidersStr = stringifyRoleProvidersMap(providersByRole);
+				qi.setRoleProviderMap(rolesProvidersStr);
+
+				XDSbService xdsService = Context.getService(XDSbService.class);
+				xdsService.queueDiscreteDataProcessing(qi);
+			} else {
+				discreteHandler.saveContent(patient, providersByRole, encounterType, content);
+			}
 		}
 
 		return docUniqueId;
+	}
+
+	/**
+	 * Represent the roles to provider map as a string using ids. This is done so that we don't have to
+	 * perform complex hibernate mappings and so that we don't have to extend the OpenMRS provider object.
+	 * @param providersByRole a map of roles to a set of providers
+	 * @return a string format of the map eg. 2:23,24,26|4:19,12 where the format is:
+	 * <role_id>:<provider_id>,<provider_id>,...|<role_id>:<provider_id>,<provider_id>,...|...
+	 */
+	protected String stringifyRoleProvidersMap(Map<EncounterRole, Set<Provider>> providersByRole) {
+		StringBuffer sb = new StringBuffer();
+		Iterator<EncounterRole> roleIterator = providersByRole.keySet().iterator();
+		while (roleIterator.hasNext()) {
+			EncounterRole role = roleIterator.next();
+			sb.append(role.getId() + ":");
+			Set<Provider> providers = providersByRole.get(role);
+			Iterator<Provider> providerIterator = providers.iterator();
+			while (providerIterator.hasNext()) {
+				sb.append(providerIterator.next().getId());
+				if (providerIterator.hasNext()) {
+					sb.append(",");
+				}
+			}
+			if (roleIterator.hasNext()) {
+				sb.append("|");
+			}
+		}
+		return sb.toString();
 	}
 
 	/**
@@ -780,6 +822,39 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 		}
 
 		return pa;
+	}
+
+	@Override
+	@Transactional(readOnly = true)
+	public QueueItem queueDiscreteDataProcessing(QueueItem qi) {
+		qi.setStatus(QueueItem.Status.QUEUED);
+		qi.setDateAdded(new Date());
+		return dao.queueDiscreteDataProcessing(qi);
+	}
+
+	@Override
+	@Transactional
+	public QueueItem dequeueNextDiscreteDataForProcessing() {
+		QueueItem qi = dao.dequeueNextDiscreteDataForProcessing();
+		if (qi != null) {
+			qi.setStatus(QueueItem.Status.PROCESSING);
+			qi.setDateUpdated(new Date());
+			return dao.updateQueueItem(qi);
+		} else {
+			return null;
+		}
+	}
+
+	@Override
+	@Transactional
+	public QueueItem completeQueueItem(QueueItem qi, boolean successful) {
+		if (successful) {
+			qi.setStatus(QueueItem.Status.SUCCESSFUL);
+		} else {
+			qi.setStatus(QueueItem.Status.FAILED);
+		}
+		qi.setDateUpdated(new Date());
+		return dao.updateQueueItem(qi);
 	}
 
 	/**

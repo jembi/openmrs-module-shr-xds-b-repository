@@ -1,0 +1,8 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<dataset>
+    <provider provider_id="301" person_id="1" identifier="Test" creator="1" date_created="2005-01-01 00:00:00.0" retired="false" uuid="b41d4933-18e4-46d1-a8ec-c05499df852a" />
+    <provider provider_id="302" person_id="1" identifier="Test" creator="1" date_created="2005-01-01 00:00:00.0" retired="false" uuid="611b4144-dd2f-49ec-b17e-0b99bb8ad03e" />
+    <provider provider_id="303" person_id="1" identifier="Test" creator="1" date_created="2005-01-01 00:00:00.0" retired="false" uuid="c271d6c4-ea15-480e-a1bc-1826aacf2ab4" />
+    <encounter_role encounter_role_id="311" name="Enc Role 1" description="Enc Role 1" creator="1" retired="false" date_created="2011-08-18 14:00:00.0" uuid="0f2d0316-fe64-43dc-9f58-9f196636a28a" />
+    <encounter_role encounter_role_id="312" name="Enc Role 2" description="Enc Role 2" creator="1" retired="false" date_created="2011-08-18 14:00:00.0" uuid="f206a9d8-f482-4b58-acd1-75fb4fa53d9b" />
+</dataset>

@@ -15,13 +15,13 @@ import org.dcm4chee.xds2.infoset.rim.ObjectFactory;
 import org.dcm4chee.xds2.infoset.rim.RegistryError;
 import org.dcm4chee.xds2.infoset.rim.RegistryErrorList;
 import org.dcm4chee.xds2.infoset.rim.RegistryResponseType;
-import org.openmrs.api.AdministrationService;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.shr.atna.api.AtnaAuditService;
 import org.openmrs.module.shr.contenthandler.api.Content;
 import org.openmrs.module.shr.contenthandler.api.ContentHandler;
 import org.openmrs.module.shr.contenthandler.api.ContentHandlerException;
 import org.openmrs.module.shr.contenthandler.api.ContentHandlerService;
+import org.openmrs.module.xdsbrepository.Utils;
 import org.openmrs.module.xdsbrepository.XDSbService;
 import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
 import org.openmrs.module.xdsbrepository.ihe.iti.actors.XdsDocumentRepositoryService;
@@ -49,19 +49,6 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 
 
     /**
-     * Start an OpenMRS Session
-     */
-    private void startSession() {
-        AdministrationService as = Context.getAdministrationService();
-        String username = as.getGlobalProperty(XDSbServiceConstants.WS_USERNAME_GP);
-        String password = as.getGlobalProperty(XDSbServiceConstants.WS_PASSWORD_GP);
-
-        Context.openSession();
-        Context.authenticate(username, password);
-
-    }
-
-    /**
      * Document repository service implementation
      *
      * @see XdsDocumentRepositoryService#provideAndRegisterDocumentSetB(org.dcm4chee.xds2.infoset.ihe.ProvideAndRegisterDocumentSetRequestType)
@@ -70,7 +57,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
     public RegistryResponseType provideAndRegisterDocumentSetB(ProvideAndRegisterDocumentSetRequestType request) {
         log.info("Start provideAndRegisterDocumentSetB");
         if (!Context.isAuthenticated()) {
-            this.startSession();
+            Utils.startSession();
         }
 
         RegistryResponseType response = new RegistryResponseType();
@@ -100,8 +87,6 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
         return response;
     }
 
-
-
     /**
      * Retrieve a document
      * Code mostly borrowed from: https://github.com/dcm4che/dcm4chee-xds/blob/master/dcm4chee-xds2-repository-ws/src/main/java/org/dcm4chee/xds2/repository/ws/XDSRepositoryBean.java#L204
@@ -116,14 +101,15 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 
         try {
             if (!Context.isAuthenticated()) {
-                this.startSession();
+                Utils.startSession();
             }
 
             String repositoryUID = getRepositoryUniqueId();
             String docUid, reqRepoUid;
             Content content;
-            for (DocumentRequest drq : req.getDocumentRequest())
+            for (DocumentRequest drq : req.getDocumentRequest()) {
                 drq.setHomeCommunityId(Context.getAdministrationService().getGlobalProperty(XDSbServiceConstants.XDS_HOME_COMMUNITY_ID));
+            }
             RetrieveDocumentSetResponseType.DocumentResponse docRsp;
             List<String> retrievedUIDs = new ArrayList<String>();
             int requestCount = req.getDocumentRequest().size();

@@ -10,6 +10,8 @@ import org.dcm4chee.xds2.infoset.util.InfosetUtil;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 import org.openmrs.*;
 import org.openmrs.api.AdministrationService;
 import org.openmrs.api.EncounterService;
@@ -22,6 +24,8 @@ import org.openmrs.module.shr.contenthandler.api.ContentHandlerService;
 import org.openmrs.module.xdsbrepository.XDSbService;
 import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
 import org.openmrs.module.xdsbrepository.exceptions.UnsupportedGenderException;
+import org.openmrs.module.xdsbrepository.db.hibernate.HibernateXDSbDAO;
+import org.openmrs.module.xdsbrepository.model.QueueItem;
 import org.openmrs.test.BaseModuleContextSensitiveTest;
 
 import javax.xml.bind.JAXBContext;
@@ -33,12 +37,15 @@ import java.io.InputStream;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.junit.Assert.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.springframework.util.Assert.notNull;
 import static org.mockito.Mockito.*;
 
@@ -219,6 +226,156 @@ public class XDSbServiceTest extends BaseModuleContextSensitiveTest {
                 fail("XDSException did not specify correct error code");
             }
         }
+    }
+
+    @Test
+    public void queueDiscreteDataProcessing_shouldStoreItemInQueueWithQueuedStatus() {
+        XDSbService service = Context.getService(XDSbService.class);
+
+        QueueItem qi = new QueueItem();
+        qi.setPatient(Context.getPatientService().getPatient(2));
+        qi.setEncounterType(Context.getEncounterService().getEncounterType(1));
+        qi.setRoleProviderMap("1:1,2|2:3");
+        qi.setDocUniqueId("123456789");
+
+        qi = service.queueDiscreteDataProcessing(qi);
+
+        assertEquals("123456789", qi.getDocUniqueId());
+        assertEquals(new Integer(2), qi.getPatient().getId());
+        assertEquals(new Integer(1), qi.getEncounterType().getId());
+        assertEquals("1:1,2|2:3", qi.getRoleProviderMap());
+        assertEquals(QueueItem.Status.QUEUED, qi.getStatus());
+        assertNotNull(qi.getDateAdded());
+
+        // dequeue queue item to clear queued items
+        service.dequeueNextDiscreteDataForProcessing();
+    }
+
+    @Test
+    public void dequeueNextDiscreteDataForProcessing_shouldFetchQueueItemAndSetStatusToProcessing() {
+        XDSbService service = Context.getService(XDSbService.class);
+
+        // create a queue item
+        QueueItem qi = new QueueItem();
+        qi.setPatient(Context.getPatientService().getPatient(2));
+        qi.setEncounterType(Context.getEncounterService().getEncounterType(1));
+        qi.setRoleProviderMap("1:1,2|2:3");
+        qi.setDocUniqueId("123456789");
+
+        service.queueDiscreteDataProcessing(qi);
+
+        qi = service.dequeueNextDiscreteDataForProcessing();
+        assertNotNull(qi);
+        assertEquals(QueueItem.Status.PROCESSING, qi.getStatus());
+
+        // dequeue queue item to clear queued items
+        service.dequeueNextDiscreteDataForProcessing();
+    }
+
+    @Test
+    public void dequeueNextDiscreteDataForProcessing_shouldReturnNullWhenQueueIsEmpty() {
+        XDSbService service = Context.getService(XDSbService.class);
+        QueueItem qi = service.dequeueNextDiscreteDataForProcessing();
+        assertNull(qi);
+    }
+
+    @Test
+    public void dequeueNextDiscreteDataForProcessing_shouldFetchOldestQueueItem() {
+        XDSbService service = Context.getService(XDSbService.class);
+
+        // create an OLD queue item
+        QueueItem qi1 = new QueueItem();
+        qi1.setPatient(Context.getPatientService().getPatient(2));
+        qi1.setEncounterType(Context.getEncounterService().getEncounterType(1));
+        qi1.setRoleProviderMap("1:1,2|2:3");
+        qi1.setDocUniqueId("I'm OLD");
+
+        // create a new queue item
+        QueueItem qi2 = new QueueItem();
+        qi2.setPatient(Context.getPatientService().getPatient(2));
+        qi2.setEncounterType(Context.getEncounterService().getEncounterType(1));
+        qi2.setRoleProviderMap("1:1,2|2:3");
+        qi2.setDocUniqueId("I'm NEW");
+
+        service.queueDiscreteDataProcessing(qi1);
+        service.queueDiscreteDataProcessing(qi2);
+
+        QueueItem qi = service.dequeueNextDiscreteDataForProcessing();
+        assertEquals("I'm OLD", qi.getDocUniqueId());
+    }
+
+    @Test
+    public void completeQueueItem_shouldMarkQueueItemAsSuccessful() {
+        XDSbService service = Context.getService(XDSbService.class);
+
+        // create a queue item
+        QueueItem qi = new QueueItem();
+        qi.setPatient(Context.getPatientService().getPatient(2));
+        qi.setEncounterType(Context.getEncounterService().getEncounterType(1));
+        qi.setRoleProviderMap("1:1,2|2:3");
+        qi.setDocUniqueId("Will succeed");
+
+        service.queueDiscreteDataProcessing(qi);
+        qi = service.dequeueNextDiscreteDataForProcessing();
+        qi = service.completeQueueItem(qi, true);
+
+        assertEquals(QueueItem.Status.SUCCESSFUL, qi.getStatus());
+        assertEquals("Will succeed", qi.getDocUniqueId());
+    }
+
+    @Test
+    public void completeQueueItem_shouldMarkQueueItemAsFailed() {
+        XDSbService service = Context.getService(XDSbService.class);
+
+        // create a queue item
+        QueueItem qi = new QueueItem();
+        qi.setPatient(Context.getPatientService().getPatient(2));
+        qi.setEncounterType(Context.getEncounterService().getEncounterType(1));
+        qi.setRoleProviderMap("1:1,2|2:3");
+        qi.setDocUniqueId("Will fail");
+
+        service.queueDiscreteDataProcessing(qi);
+        qi = service.dequeueNextDiscreteDataForProcessing();
+        qi = service.completeQueueItem(qi, false);
+
+        assertEquals(QueueItem.Status.FAILED, qi.getStatus());
+        assertEquals("Will fail", qi.getDocUniqueId());
+    }
+
+    @Test
+    public void stringifyRoleProvidersMap_shouldReturnAStringRepresentationOfTheMap() {
+        XDSbServiceImpl service = new XDSbServiceImpl();
+        Map<EncounterRole, Set<Provider>> providersByRole = new HashMap<EncounterRole, Set<Provider>>();
+
+        Provider p1 = new Provider();
+        p1.setId(1);
+        Provider p2 = new Provider();
+        p2.setId(2);
+        Provider p3 = new Provider();
+        p3.setId(3);
+
+        Set set1 = new HashSet();
+        set1.add(p1);
+        set1.add(p2);
+
+        Set set2 = new HashSet();
+        set2.add(p3);
+
+        EncounterRole er1 = new EncounterRole();
+        er1.setId(1);
+
+        EncounterRole er2 = new EncounterRole();
+        er2.setId(2);
+
+        providersByRole.put(er1, set1);
+        providersByRole.put(er2, set2);
+
+        String s = service.stringifyRoleProvidersMap(providersByRole);
+
+        // should be 2:3|1:2,1 or equivalent
+        assertTrue(s.contains("2:3"));
+        assertTrue(s.contains("1:"));
+        assertTrue(s.contains("2,1") || s.contains("1,2"));
     }
 
     @Test

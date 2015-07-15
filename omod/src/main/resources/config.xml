@@ -89,5 +89,20 @@
 		<description>The id of the community within which this SHR operates</description>
 		<defaultValue>1.2.3.4.5.6.67.7.8</defaultValue>
 	</globalProperty>
+	<globalProperty>
+		<property>${project.parent.artifactId}.discreteHandler.async</property>
+		<description>If this property is true any discrete data handlers for a document will be invoked asynchronously. Documents will be added to a queue for discrete processing. You must restart the xds.b module after setting this to true so that the processor threads may be setup.</description>
+		<defaultValue>false</defaultValue>
+	</globalProperty>
+	<globalProperty>
+		<property>${project.parent.artifactId}.discreteHandler.asyncPollingPeriod</property>
+		<description>This property specifies the polling time in ms to pickup new discrete data in the queue for async processing.</description>
+		<defaultValue>100</defaultValue>
+	</globalProperty>
+	<globalProperty>
+		<property>${project.parent.artifactId}.discreteHandler.asyncMaxTasks</property>
+		<description>This property specifies the maximum number of processor threads to run for processing discrete data. A good value to set this to is equal to 75% of the number of cores available on your server. It's good to leave some available to service incoming requests efficiently.</description>
+		<defaultValue>6</defaultValue>
+	</globalProperty>
 </module>
 
