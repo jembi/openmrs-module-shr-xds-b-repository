@@ -45,7 +45,6 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 	
 	protected final Log log = LogFactory.getLog(this.getClass());
 
-
 	private static final String SLOT_NAME_REPOSITORY_UNIQUE_ID = "repositoryUniqueId";
 
 	public static final String SLOT_NAME_HASH = "hash";
@@ -826,6 +825,7 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 	}
 
 	@Override
+	@Transactional(readOnly = true)
 	public QueueItem queueDiscreteDataProcessing(QueueItem qi) {
 		qi.setStatus(QueueItem.Status.QUEUED);
 		qi.setDateAdded(new Date());
@@ -833,20 +833,20 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 	}
 
 	@Override
+	@Transactional
 	public QueueItem dequeueNextDiscreteDataForProcessing() {
-		synchronized (this) {
-			QueueItem qi = dao.dequeueNextDiscreteDataForProcessing();
-			if (qi != null) {
-				qi.setStatus(QueueItem.Status.PROCESSING);
-				qi.setDateUpdated(new Date());
-				return dao.updateQueueItem(qi);
-			} else {
-				return null;
-			}
+		QueueItem qi = dao.dequeueNextDiscreteDataForProcessing();
+		if (qi != null) {
+			qi.setStatus(QueueItem.Status.PROCESSING);
+			qi.setDateUpdated(new Date());
+			return dao.updateQueueItem(qi);
+		} else {
+			return null;
 		}
 	}
 
 	@Override
+	@Transactional
 	public QueueItem completeQueueItem(QueueItem qi, boolean successful) {
 		if (successful) {
 			qi.setStatus(QueueItem.Status.SUCCESSFUL);

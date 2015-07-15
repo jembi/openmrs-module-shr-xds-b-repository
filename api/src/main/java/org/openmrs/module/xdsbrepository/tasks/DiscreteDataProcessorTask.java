@@ -27,6 +27,8 @@ import java.util.Set;
 
 public class DiscreteDataProcessorTask implements Runnable {
 
+    private static final Object lock = new Object();
+
     private Log log = LogFactory.getLog(DiscreteDataProcessorTask.class);
 
     @Override
@@ -34,7 +36,11 @@ public class DiscreteDataProcessorTask implements Runnable {
         XDSbService service = Context.getService(XDSbService.class);
         Utils.startSession();
 
-        QueueItem currentQueueItem = service.dequeueNextDiscreteDataForProcessing();
+        QueueItem currentQueueItem;
+        // ensure that tasks don't dequeue the same queue item
+        synchronized (lock) {
+            currentQueueItem = service.dequeueNextDiscreteDataForProcessing();
+        }
         if (currentQueueItem != null) {
             try {
                 processQueueItem(currentQueueItem);
