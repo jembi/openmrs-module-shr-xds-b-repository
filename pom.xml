@@ -4,7 +4,7 @@
 
 	<groupId>org.openmrs.module</groupId>
 	<artifactId>xds-b-repository</artifactId>
-	<version>0.5.0-SNAPSHOT</version>
+	<version>1.0.0</version>
 	<packaging>pom</packaging>
 	<name>XDSb Repository Interface Module</name>
 	<description>Provides an XDSb interface into OpenMRS for use with the SHR module suite.</description>
@@ -119,6 +119,11 @@
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-dependency-plugin</artifactId>
 					<version>2.4</version>
+				</plugin>
+				<plugin>
+					<groupId>org.codehaus.mojo</groupId>
+					<artifactId>versions-maven-plugin</artifactId>
+					<version>2.2</version>
 				</plugin>
 			</plugins>
 		</pluginManagement>
