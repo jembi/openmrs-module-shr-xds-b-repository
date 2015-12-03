@@ -185,10 +185,12 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 	 */
 	protected String processDocumentMetaData(ExtrinsicObjectType eot, ProvideAndRegisterDocumentSetRequestType request) throws XDSException {
 
+		validateMetadata(eot);
+
 		String docUniqueId = getDocumentUniqueId(eot);
 		Content content = buildContentObjectFromDocument(docUniqueId, eot, request);
 
-		validateMetadata(eot, content);
+		validateContent(eot, content);
 
 		addHashSlot(eot, content);
 		addSizeSlot(eot, content);
@@ -201,7 +203,7 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 	 *
 	 * @throws XDSException
 	 */
-	protected void validateMetadata(ExtrinsicObjectType eot, Content content) throws XDSException {
+	protected void validateMetadata(ExtrinsicObjectType eot) throws XDSException {
 		if (InfosetUtil.getExternalIdentifierValue(XDSConstants.UUID_XDSDocumentEntry_uniqueId, eot) == null) {
 			throw new XDSException(XDSException.XDS_ERR_REPOSITORY_METADATA_ERROR, "Document unique id not specified", null);
 		}
@@ -221,7 +223,9 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 			throw new XDSException(XDSException.XDS_ERR_REPOSITORY_METADATA_ERROR, "Source patientId not specified", null);
 		}
 		parsePatientIdentifier(id);
+	}
 
+	protected void validateContent(ExtrinsicObjectType eot, Content content) throws XDSException {
 		String hash = InfosetUtil.getSlotValue(eot.getSlot(), XDSConstants.SLOT_NAME_HASH, null);
 		if (hash != null) {
 			// verify hash
