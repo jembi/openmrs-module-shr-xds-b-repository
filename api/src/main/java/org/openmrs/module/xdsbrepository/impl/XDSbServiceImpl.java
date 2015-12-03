@@ -190,6 +190,8 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 		String docUniqueId = getDocumentUniqueId(eot);
 		Content content = buildContentObjectFromDocument(docUniqueId, eot, request);
 
+		validateContent(eot, content);
+
 		addHashSlot(eot, content);
 		addSizeSlot(eot, content);
 
@@ -221,6 +223,37 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 			throw new XDSException(XDSException.XDS_ERR_REPOSITORY_METADATA_ERROR, "Source patientId not specified", null);
 		}
 		parsePatientIdentifier(id);
+	}
+
+	protected void validateContent(ExtrinsicObjectType eot, Content content) throws XDSException {
+		String hash = InfosetUtil.getSlotValue(eot.getSlot(), XDSConstants.SLOT_NAME_HASH, null);
+		if (hash != null) {
+			// verify hash
+			try {
+				MessageDigest digest = MessageDigest.getInstance("SHA-1");
+				digest.update(content.getPayload());
+
+				String calcHash = bytesToHex(digest.digest());
+				if (!calcHash.equalsIgnoreCase(hash)) {
+					throw new XDSException(XDSException.XDS_ERR_REPOSITORY_METADATA_ERROR, "The specified document hash is incorrect", null);
+				}
+			} catch (NoSuchAlgorithmException e) {
+				throw new RuntimeException(e);
+			}
+		}
+
+		String sizeStr = InfosetUtil.getSlotValue(eot.getSlot(), XDSConstants.SLOT_NAME_SIZE, null);
+		if (sizeStr != null) {
+			// verify size
+			try {
+				int size = Integer.parseInt(sizeStr);
+				if (size != content.getPayload().length) {
+					throw new XDSException(XDSException.XDS_ERR_REPOSITORY_METADATA_ERROR, "The specified document size is incorrect", null);
+				}
+			} catch (NumberFormatException e) {
+				throw new XDSException(XDSException.XDS_ERR_REPOSITORY_METADATA_ERROR, "Size slot does not contain a valid number", e);
+			}
+		}
 	}
 
 	protected String getDocumentUniqueId(ExtrinsicObjectType eot) throws XDSException {
