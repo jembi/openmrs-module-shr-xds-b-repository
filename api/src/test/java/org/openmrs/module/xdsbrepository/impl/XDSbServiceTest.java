@@ -10,8 +10,6 @@ import org.dcm4chee.xds2.infoset.util.InfosetUtil;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.openmrs.*;
 import org.openmrs.api.AdministrationService;
 import org.openmrs.api.EncounterService;
@@ -24,7 +22,6 @@ import org.openmrs.module.shr.contenthandler.api.ContentHandlerService;
 import org.openmrs.module.xdsbrepository.XDSbService;
 import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
 import org.openmrs.module.xdsbrepository.exceptions.UnsupportedGenderException;
-import org.openmrs.module.xdsbrepository.db.hibernate.HibernateXDSbDAO;
 import org.openmrs.module.xdsbrepository.model.QueueItem;
 import org.openmrs.test.BaseModuleContextSensitiveTest;
 
@@ -110,9 +107,9 @@ public class XDSbServiceTest extends BaseModuleContextSensitiveTest {
 
 		assertEquals("urn:oasis:names:tc:ebxml-regrep:ResponseStatusType:Success", res.getStatus());
 		com.github.tomakehurst.wiremock.client.WireMock.verify(postRequestedFor(urlEqualTo("/ws/xdsregistry"))
-		        .withHeader("Content-Type", containing("application/soap+xml"))
-		        .withRequestBody(containing("SubmitObjectsRequest"))
-				.withRequestBody(containing("1111111111^^^&amp;1.2.3&amp;ISO")));
+                .withHeader("Content-Type", containing("application/soap+xml"))
+                .withRequestBody(containing("SubmitObjectsRequest"))
+                .withRequestBody(containing("1111111111^^^&amp;1.2.3&amp;ISO")));
 	}
 
     @Test
@@ -656,24 +653,46 @@ public class XDSbServiceTest extends BaseModuleContextSensitiveTest {
         verify(mockHandler).saveContent(eq(ps.getPatient(2)), (Map<EncounterRole, Set<Provider>>) any(), eq(es.getEncounterType(1)), eq(expectedContent));
     }
 
-    @Test
-    public void validateMetadata_shouldDoNothingWhenDocumentValid() throws Exception {
-        XDSbServiceImpl service = new XDSbServiceImpl();
-        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest1.xml");
-        List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
-        ExtrinsicObjectType eo = extrinsicObjects.get(0);
-
-        service.validateMetadata(eo);
-    }
-
-    private void testValidateMetadata(String testDocument) throws Exception {
+    public void testValidateMetadataSuccess(String testDocument) throws Exception {
         XDSbServiceImpl service = new XDSbServiceImpl();
         ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName(testDocument);
         List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
         ExtrinsicObjectType eo = extrinsicObjects.get(0);
 
+        CodedValue typeCode = new CodedValue("testType", "testCodes", "Test Type");
+        CodedValue formatCode = new CodedValue("testFormat", "testCodes", "Test Format");
+        Content content = new Content("2009.9.1.2455", "My test document".getBytes(), typeCode, formatCode, "text/plain");
+
+        service.validateMetadata(eo, content);
+    }
+
+    @Test
+    public void validateMetadata_shouldDoNothingWhenDocumentValid() throws Exception {
+        testValidateMetadataSuccess("provideAndRegRequest1.xml");
+    }
+
+    @Test
+    public void validateMetadata_shouldDoNothingWhenHashIsCorrect() throws Exception {
+        testValidateMetadataSuccess("provideAndRegRequest_correctHash.xml");
+    }
+
+    @Test
+    public void validateMetadata_shouldDoNothingWhenSizeIsCorrect() throws Exception {
+        testValidateMetadataSuccess("provideAndRegRequest_correctSize.xml");
+    }
+
+    private void testValidateMetadataReject(String testDocument) throws Exception {
+        XDSbServiceImpl service = new XDSbServiceImpl();
+        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName(testDocument);
+        List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+        ExtrinsicObjectType eo = extrinsicObjects.get(0);
+
+        CodedValue typeCode = new CodedValue("testType", "testCodes", "Test Type");
+        CodedValue formatCode = new CodedValue("testFormat", "testCodes", "Test Format");
+        Content content = new Content("2009.9.1.2455", "My test document".getBytes(), typeCode, formatCode, "text/plain");
+
         try {
-            service.validateMetadata(eo);
+            service.validateMetadata(eo, content);
             fail("Failed to throw XDSException");
         } catch (XDSException ex) {
             //expected
@@ -682,25 +701,33 @@ public class XDSbServiceTest extends BaseModuleContextSensitiveTest {
 
     @Test
     public void validateMetadata_shouldRejectWhenNoUniqueId() throws Exception {
-        testValidateMetadata("provideAndRegRequest_noUniqueId.xml");
+        testValidateMetadataReject("provideAndRegRequest_noUniqueId.xml");
     }
 
     @Test
     public void validateMetadata_shouldRejectWhenNoClassCode() throws Exception {
-        testValidateMetadata("provideAndRegRequest_noClassCode.xml");
+        testValidateMetadataReject("provideAndRegRequest_noClassCode.xml");
     }
 
     @Test
     public void validateMetadata_shouldRejectWhenNoDocumentEntryPatientId() throws Exception {
-        testValidateMetadata("provideAndRegRequest_noDocumentEntryPatientId.xml");
+        testValidateMetadataReject("provideAndRegRequest_noDocumentEntryPatientId.xml");
     }
 
     @Test
     public void validateMetadata_shouldRejectWhenNoSourcePatientId() throws Exception {
-        testValidateMetadata("provideAndRegRequest_noSourcePatientId.xml");
+        testValidateMetadataReject("provideAndRegRequest_noSourcePatientId.xml");
     }
 
+    @Test
+    public void validateMetadata_shouldRejectWhenHashIsIncorrect() throws Exception {
+        testValidateMetadataReject("provideAndRegRequest_incorrectHash.xml");
+    }
 
+    @Test
+    public void validateMetadata_shouldRejectWhenSizeIsIncorrect() throws Exception {
+        testValidateMetadataReject("provideAndRegRequest_incorrectSize.xml");
+    }
 
     public class TestContentHandler1 implements ContentHandler {
 
