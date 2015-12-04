@@ -181,7 +181,7 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 		return response;
 	}
 
-	private void validateDocumentMatchMetadata(List<ExtrinsicObjectType> extrinsicObjects, Map<String, ProvideAndRegisterDocumentSetRequestType.Document> documents) throws XDSException {
+	protected void validateDocumentMatchMetadata(List<ExtrinsicObjectType> extrinsicObjects, Map<String, ProvideAndRegisterDocumentSetRequestType.Document> documents) throws XDSException {
 		Set<String> metadataIds = new HashSet<String>();
 		for (ExtrinsicObjectType eot : extrinsicObjects) {
 			metadataIds.add(eot.getId());
