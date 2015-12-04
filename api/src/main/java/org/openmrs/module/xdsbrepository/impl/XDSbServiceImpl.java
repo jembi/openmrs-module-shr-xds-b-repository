@@ -1,5 +1,6 @@
 package org.openmrs.module.xdsbrepository.impl;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.dcm4che3.audit.AuditMessages.EventTypeCode;
@@ -197,25 +198,12 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 		missingMetadata.removeAll(metadataIds);
 
 		if (missingDocs.size() > 0) {
-			throw new XDSException(XDSException.XDS_ERR_MISSING_DOCUMENT, "The following documents are referenced by metadata but are missing: " + stringifySet(missingDocs), null);
+			throw new XDSException(XDSException.XDS_ERR_MISSING_DOCUMENT, "The following documents are referenced by metadata but are missing: " + StringUtils.join(missingDocs, ", "), null);
 		}
 		if (missingMetadata.size() > 0) {
-			throw new XDSException(XDSException.XDS_ERR_MISSING_DOCUMENT_METADATA, "The following documents were found but their metadata is missing: " + stringifySet(missingMetadata), null);
+			throw new XDSException(XDSException.XDS_ERR_MISSING_DOCUMENT_METADATA, "The following documents were found but their metadata is missing: " + StringUtils.join(missingMetadata, ", "), null);
 		}
 	}
-
-	private String stringifySet(Set<String> missingDocs) {
-		String str = "";
-		for (String s : missingDocs) {
-            if (str.length() == 0) {
-                str += s;
-            } else {
-                str += ", " + s;
-            }
-        }
-		return str;
-	}
-
 
 	/**
 	 * Store a document and return its UUID
