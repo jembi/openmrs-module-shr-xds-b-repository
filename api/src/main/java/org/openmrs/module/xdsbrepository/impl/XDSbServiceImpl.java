@@ -149,6 +149,8 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 			SubmitObjectsRequest submitObjectRequest = request.getSubmitObjectsRequest();
 			XDSbService xdsService = Context.getService(XDSbService.class);
 
+			validateDocumentMatchMetadata(extrinsicObjects, InfosetUtil.getDocuments(request));
+
 			Map<String, Class<? extends ContentHandler>> contentHandlers = new HashMap<String, Class<? extends ContentHandler>>();
 			for (ExtrinsicObjectType eot : extrinsicObjects) {
 				contentHandlers.put(this.processDocumentMetaData(eot, request), UnstructuredDataHandler.class);
@@ -167,16 +169,51 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 
 		} catch (UnsupportedGenderException ex) {
 			throw new XDSException(XDSException.XDS_ERR_REPOSITORY_ERROR, ex.getMessage(), ex);
-
 		} catch (JAXBException ex) {
 			throw new XDSException(XDSException.XDS_ERR_REPOSITORY_ERROR, ex.getMessage(), ex);
-
+		} catch (RuntimeException ex) {
+			throw new XDSException(XDSException.XDS_ERR_REPOSITORY_ERROR, ex.getMessage(), ex);
 		} finally {
 			XDSAudit.setAuditLogger(Context.getService(AtnaAuditService.class).getLogger());
 			XDSAudit.logRepositoryImport(submissionSetUID, patID, info, wasSuccess);
 		}
 
 		return response;
+	}
+
+	private void validateDocumentMatchMetadata(List<ExtrinsicObjectType> extrinsicObjects, Map<String, ProvideAndRegisterDocumentSetRequestType.Document> documents) throws XDSException {
+		Set<String> metadataIds = new HashSet<String>();
+		for (ExtrinsicObjectType eot : extrinsicObjects) {
+			metadataIds.add(eot.getId());
+		}
+
+		Set<String> allIds = new HashSet<String>();
+		allIds.addAll(metadataIds);
+		allIds.addAll(documents.keySet());
+
+		Set<String> missingDocs = new HashSet<String>(allIds);
+		missingDocs.removeAll(documents.keySet());
+		Set<String> missingMetadata = new HashSet<String>(allIds);
+		missingMetadata.removeAll(metadataIds);
+
+		if (missingDocs.size() > 0) {
+			throw new XDSException(XDSException.XDS_ERR_MISSING_DOCUMENT, "The following documents are referenced by metadata but are missing: " + stringifySet(missingDocs), null);
+		}
+		if (missingMetadata.size() > 0) {
+			throw new XDSException(XDSException.XDS_ERR_MISSING_DOCUMENT_METADATA, "The following documents were found but their metadata is missing: " + stringifySet(missingMetadata), null);
+		}
+	}
+
+	private String stringifySet(Set<String> missingDocs) {
+		String str = "";
+		for (String s : missingDocs) {
+            if (str.length() == 0) {
+                str += s;
+            } else {
+                str += ", " + s;
+            }
+        }
+		return str;
 	}
 
 
