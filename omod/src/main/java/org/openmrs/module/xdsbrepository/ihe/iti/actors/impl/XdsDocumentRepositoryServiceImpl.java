@@ -213,7 +213,7 @@ public class XdsDocumentRepositoryServiceImpl implements XdsDocumentRepositorySe
 
 
     private void processExceptionForResponse(RegistryResponseType response, Throwable t) {
-        log.error(t);
+        log.error("Exception while processing provide and register", t);
         response.setStatus(XDSConstants.XDS_B_STATUS_FAILURE);
 
         if (t instanceof XDSException) {

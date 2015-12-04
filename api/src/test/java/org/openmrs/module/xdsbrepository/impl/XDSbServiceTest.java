@@ -731,6 +731,42 @@ public class XDSbServiceTest extends BaseModuleContextSensitiveTest {
         testValidateReject("provideAndRegRequest_incorrectSize.xml");
     }
 
+    @Test
+    public void validateDocumentMatchMetadata_shouldNotThrowWhenMetadataMatchesDocuments() throws Exception {
+        XDSbServiceImpl service = new XDSbServiceImpl();
+        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest_multiDoc.xml");
+        List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+        service.validateDocumentMatchMetadata(extrinsicObjects, InfosetUtil.getDocuments(request));
+    }
+
+    @Test
+    public void validateDocumentMatchMetadata_shouldThrowWhenMissingDocs() throws Exception {
+        try {
+            XDSbServiceImpl service = new XDSbServiceImpl();
+            ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest_missingDoc.xml");
+            List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+            service.validateDocumentMatchMetadata(extrinsicObjects, InfosetUtil.getDocuments(request));
+            fail("Didn't throw expected XDSException");
+        } catch (XDSException e) {
+            // expected
+            assertEquals("The following documents are referenced by metadata but are missing: Document01, Document02", e.getMessage());
+        }
+    }
+
+    @Test
+    public void validateDocumentMatchMetadata_shouldThrowWhenMissingMetadata() throws Exception {
+        try {
+            XDSbServiceImpl service = new XDSbServiceImpl();
+            ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest_missingMeta.xml");
+            List<ExtrinsicObjectType> extrinsicObjects = InfosetUtil.getExtrinsicObjects(request.getSubmitObjectsRequest());
+            service.validateDocumentMatchMetadata(extrinsicObjects, InfosetUtil.getDocuments(request));
+            fail("Didn't throw expected XDSException");
+        } catch (XDSException e) {
+            // expected
+            assertEquals("The following documents were found but their metadata is missing: Document01", e.getMessage());
+        }
+    }
+
     public class TestContentHandler1 implements ContentHandler {
 
         @Override
