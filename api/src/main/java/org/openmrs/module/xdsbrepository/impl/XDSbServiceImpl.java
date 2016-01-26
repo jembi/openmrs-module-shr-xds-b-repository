@@ -89,16 +89,22 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 	@Override
 	public RegistryResponseType registerDocument(String uniqueId, Class<? extends ContentHandler> contentHandler, SubmitObjectsRequest submitObjectRequest) throws XDSException {
 		try {
-			RegistryResponseType retVal = sendMetadataToRegistry(getRegistryUrl(), submitObjectRequest);
-
-			if (retVal.getStatus().equals(XDSConstants.XDS_B_STATUS_SUCCESS)) {
-				dao.registerDocument(uniqueId, contentHandler);
-			}
-
-			return retVal;
+			return registerDocument(getRegistryUrl(), uniqueId, contentHandler, submitObjectRequest);
 		} catch (MalformedURLException ex) {
 			throw new XDSException(XDSException.XDS_ERR_REPOSITORY_ERROR, ex.getMessage(), ex);
 		}
+	}
+
+	@Transactional(readOnly = false, rollbackFor = XDSException.class)
+	@Override
+	public RegistryResponseType registerDocument(URL registryURL, String uniqueId, Class<? extends ContentHandler> contentHandler, SubmitObjectsRequest submitObjectRequest) throws XDSException {
+		RegistryResponseType retVal = sendMetadataToRegistry(registryURL, submitObjectRequest);
+
+		if (retVal.getStatus().equals(XDSConstants.XDS_B_STATUS_SUCCESS)) {
+			dao.registerDocument(uniqueId, contentHandler);
+		}
+
+		return retVal;
 	}
 
 	@Transactional(readOnly = false, rollbackFor = XDSException.class)

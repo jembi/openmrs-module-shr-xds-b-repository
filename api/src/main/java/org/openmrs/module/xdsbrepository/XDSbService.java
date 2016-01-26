@@ -10,6 +10,7 @@ import org.openmrs.module.shr.contenthandler.api.ContentHandlerException;
 import org.openmrs.module.xdsbrepository.model.QueueItem;
 
 import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.Map;
 
 public interface XDSbService extends OpenmrsService {
@@ -25,6 +26,8 @@ public interface XDSbService extends OpenmrsService {
      * @throws MalformedURLException
      */
     RegistryResponseType registerDocument(String documentUniqueId, Class<? extends ContentHandler> contentHandler, SubmitObjectsRequest submitObjectRequest) throws XDSException;
+
+	RegistryResponseType registerDocument(URL registryURL, String documentUniqueId, Class<? extends ContentHandler> contentHandler, SubmitObjectsRequest submitObjectRequest) throws XDSException;
 
 	/**
 	 * Registers documents with the configured XDS.b registry and stores a mapping
