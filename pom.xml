@@ -4,7 +4,7 @@
 
 	<groupId>org.openmrs.module</groupId>
 	<artifactId>xds-b-repository</artifactId>
-    <version>1.2-SNAPSHOT</version>
+    <version>1.1.1-SNAPSHOT</version>
 	<packaging>pom</packaging>
 	<name>XDSb Repository Interface Module</name>
 	<description>Provides an XDSb interface into OpenMRS for use with the SHR module suite.</description>
@@ -36,6 +36,8 @@
 		<openMRSVersion>1.11.5</openMRSVersion>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<springVersion>4.1.4.RELEASE</springVersion>
+        <contenthandlerVersion>3.0.1-SNAPSHOT</contenthandlerVersion>
+        <atnaVersion>1.0.1-SNAPSHOT</atnaVersion>
 	</properties>
 
 	<dependencyManagement>
