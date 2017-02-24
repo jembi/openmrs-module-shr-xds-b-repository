@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.openmrs.module</groupId>
 		<artifactId>xds-b-repository</artifactId>
-		<version>1.1.0</version>
+        <version>1.1.1-SNAPSHOT</version>
 	</parent>
 
 	<artifactId>xds-b-repository-omod</artifactId>
@@ -36,12 +36,14 @@
 			<groupId>org.openmrs.api</groupId>
 			<artifactId>openmrs-api</artifactId>
 			<type>jar</type>
+            <scope>provided</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.openmrs.web</groupId>
 			<artifactId>openmrs-web</artifactId>
 			<type>jar</type>
+            <scope>provided</scope>
 		</dependency>
 
 		<dependency>
@@ -71,7 +73,7 @@
 		<dependency>
 			<groupId>org.springframework.ws</groupId>
 			<artifactId>spring-ws-core</artifactId>
-			<version>2.1.4.RELEASE</version>
+			<version>2.4.0.RELEASE</version>
 			<type>jar</type>
 		</dependency>
 
@@ -79,7 +81,7 @@
 		<dependency>
 			<groupId>org.openmrs.module</groupId>
 			<artifactId>shr-contenthandler-api</artifactId>
-			<version>3.0.0</version>
+			<version>${contenthandlerVersion}</version>
 			<type>jar</type>
   			<scope>provided</scope>
 		</dependency>
@@ -88,7 +90,7 @@
 		<dependency>
 			<groupId>org.openmrs.module</groupId>
 			<artifactId>shr-atna-api</artifactId>
-			<version>1.0.0</version>
+			<version>${atnaVersion}</version>
 			<type>jar</type>
   			<scope>provided</scope>
 		</dependency>
@@ -97,14 +99,14 @@
 		<dependency>
 			<groupId>org.dcm4che</groupId>
 			<artifactId>dcm4chee-xds2-infoset</artifactId>
-			<version>2.0.5</version>
+			<version>2.0.6</version>
 		</dependency>
 
         <!-- DCM4CHEE common module -->
         <dependency>
             <groupId>org.dcm4che</groupId>
             <artifactId>dcm4chee-xds2-common</artifactId>
-            <version>2.0.5</version>
+            <version>2.0.6</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.jboss.spec.javax.servlet</groupId>

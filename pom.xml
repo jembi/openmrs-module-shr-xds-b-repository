@@ -4,7 +4,7 @@
 
 	<groupId>org.openmrs.module</groupId>
 	<artifactId>xds-b-repository</artifactId>
-	<version>1.1.0</version>
+    <version>1.1.1-SNAPSHOT</version>
 	<packaging>pom</packaging>
 	<name>XDSb Repository Interface Module</name>
 	<description>Provides an XDSb interface into OpenMRS for use with the SHR module suite.</description>
@@ -22,9 +22,9 @@
 	</organization>
 
 	<scm>
-		<connection>scm:svn:https://svn.openmrs.org/openmrs-modules/xds-b-repository/trunk/</connection>
-		<developerConnection>scm:svn:https://svn.openmrs.org/openmrs-modules/xds-b-repository/trunk/</developerConnection>
-		<url>https://svn.openmrs.org/openmrs-modules/xds-b-repository/trunk/</url>
+		<connection>scm:git@github.com:jembi/openmrs-module-shr-xds-b-repository.git</connection>
+		<developerConnection>scm:git@github.com:jembi/openmrs-module-shr-xds-b-repository.git</developerConnection>
+		<url>https://github.com/jembi/openmrs-module-shr-xds-b-repository.git</url>
 	</scm>
 
 	<modules>
@@ -33,9 +33,12 @@
 	</modules>
 	
 	<properties>
-		<openMRSVersion>1.12.0-SNAPSHOT</openMRSVersion>
+		<openMRSVersion>1.11.5</openMRSVersion>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<springVersion>4.1.4.RELEASE</springVersion>
+        <contenthandlerVersion>3.0.1-SNAPSHOT</contenthandlerVersion>
+        <atnaVersion>1.0.1-SNAPSHOT</atnaVersion>
+        <javaCompilerVersion>1.6</javaCompilerVersion>
 	</properties>
 
 	<dependencyManagement>
@@ -106,8 +109,8 @@
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-compiler-plugin</artifactId>
 					<configuration>
-						<target>1.6</target>
-						<source>1.6</source>
+						<target>${javaCompilerVersion}</target>
+						<source>${javaCompilerVersion}</source>
 					</configuration>
 				</plugin>
 				<plugin>
@@ -135,6 +138,11 @@
 			<name>OpenMRS Nexus Repository</name>
 			<url>http://mavenrepo.openmrs.org/nexus/content/repositories/public</url>
 		</repository>
+        <repository>
+            <id>dcm4che-repo</id>
+            <name>DCM4CHE Repository</name>
+            <url>http://www.dcm4che.org/maven2</url>
+        </repository>
 	</repositories>
 
 	<pluginRepositories>

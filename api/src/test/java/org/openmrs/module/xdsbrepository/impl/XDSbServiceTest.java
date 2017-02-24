@@ -82,7 +82,7 @@ public class XDSbServiceTest extends BaseModuleContextSensitiveTest {
 
     @Before
     public void setup() throws Exception {
-        executeDataSet("src/test/resources/provideAndRegRequest-dataset.xml");
+        executeDataSet("provideAndRegRequest-dataset.xml");
 
         AdministrationService as = Context.getAdministrationService();
 
