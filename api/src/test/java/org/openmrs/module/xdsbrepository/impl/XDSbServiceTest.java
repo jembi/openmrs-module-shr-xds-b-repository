@@ -24,6 +24,7 @@ import org.openmrs.module.xdsbrepository.XDSbServiceConstants;
 import org.openmrs.module.xdsbrepository.exceptions.UnsupportedGenderException;
 import org.openmrs.module.xdsbrepository.model.QueueItem;
 import org.openmrs.test.BaseModuleContextSensitiveTest;
+import org.openmrs.util.OpenmrsConstants;
 
 import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBElement;
@@ -801,6 +802,39 @@ public class XDSbServiceTest extends BaseModuleContextSensitiveTest {
         public ContentHandler cloneHandler() {
             return new TestContentHandler2();
         }
+    }
+
+    @Test
+    public void provideAndRegisterDocumentSetB_shouldNotAddDuplcateIdsToAPatient() throws Exception {
+        stubRegistry();
+
+        //sanity checks that the patient already has the source patient id
+        Patient patient = Context.getPatientService().getPatient(2);
+        assertEquals(2, patient.getIdentifiers().size());
+        assertEquals("101-6", patient.getPatientIdentifier("1.2.3").getIdentifier());
+        //This is required so that the patient gets reloaded in the code we're testing for the bug
+        //reported in TRUNK-https://issues.openmrs.org/browse/TRUNK-5089 to be reproduced.
+        Context.evictFromSession(patient);
+
+        AdministrationService as = Context.getAdministrationService();
+        GlobalProperty gp = new GlobalProperty("shr.contenthandler.unstructureddatahandler.key", "ContentObsHandler");
+        as.saveGlobalProperty(gp);
+        gp = new GlobalProperty(OpenmrsConstants.GLOBAL_PROPERTY_COMPLEX_OBS_DIR, "test_complex_obs");
+        as.saveGlobalProperty(gp);
+        ProvideAndRegisterDocumentSetRequestType request = parseRequestFromResourceName("provideAndRegRequest-patientWithExistingSourcePatientId.xml");
+
+        XDSbService service = Context.getService(XDSbService.class);
+        RegistryResponseType result = service.provideAndRegisterDocumentSetB(request);
+
+        assertNotNull(result);
+        assertEquals(XDSConstants.XDS_B_STATUS_SUCCESS, result.getStatus());
+
+        //This is required because It's the patient identifiers stored in the DB
+        //that matter and not those in the hibernate session.
+        Context.flushSession();
+        Context.clearSession();
+        patient = Context.getPatientService().getPatient(2);
+        assertEquals(2, patient.getIdentifiers().size());
     }
 
 }
