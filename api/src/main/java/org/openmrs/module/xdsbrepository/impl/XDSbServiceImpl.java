@@ -699,6 +699,10 @@ public class XDSbServiceImpl extends BaseOpenmrsService implements XDSbService {
 			}
 		} else {
 			retVal = patients.get(0);
+            //Due to a bug in OpenMRS, we need to reload the patient to have a complete list
+            //of their identifiers, see https://issues.openmrs.org/browse/TRUNK-5089
+            Context.evictFromSession(retVal);
+            retVal = ps.getPatient(retVal.getPatientId());
 		}
 
 		this.addLocalIdentifierToPatient(eo, retVal);
